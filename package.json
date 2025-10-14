@@ -1,0 +1,17 @@
+{
+  "name": "debtwiaseai_linebot",
+  "version": "1.0.0",
+  "description": "DebtWise AI for LINE chatbot project",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . --ext .js,.mjs,.cjs --no-error-on-unmatched-pattern",
+    "format": "prettier --write ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "prettier": "^3.6.2"
+  }
+}

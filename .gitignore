@@ -1,0 +1,49 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage
+*.lcov
+
+# Dependency directories
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Caches
+.npm
+.eslintcache
+.cache
+.parcel-cache
+.next
+out
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Editors and system files
+.DS_Store
+.idea/
+.vscode/
+
+# Optional npm cache directory
+.npmrc
+
+# Optional REPL history
+.node_repl_history
