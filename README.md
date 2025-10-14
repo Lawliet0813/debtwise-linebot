@@ -1,7 +1,3 @@
-以下是適合放在你 debtwise-linebot GitHub 專案的 README.md。它採用專案說明書的標準格式，清楚描述用途、架構、安裝方式與開發說明，Codex 或任何協作者都能立即理解整體流程。
-
-⸻
-
 💰 DebtWise AI for LINE
 
 Smart Debt Management Chatbot — 在 LINE 中直接管理債務、紀錄還款、生成策略、接收提醒。
