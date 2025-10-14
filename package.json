@@ -1,0 +1,11 @@
+{
+  "name": "debtwiaseai-linebot",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^1.4.0"
+  }
+}
