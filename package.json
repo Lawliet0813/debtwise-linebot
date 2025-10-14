@@ -1,0 +1,25 @@
+{
+  "name": "debtwise-linebot",
+  "version": "1.0.0",
+  "description": "DebtWise AI LINE bot webhook server",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "line",
+    "webhook",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@line/bot-sdk": "^10.3.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0"
+  }
+}
