@@ -90,7 +90,9 @@ export async function handleList(lineUserId) {
   const lines = enrichedDebts.map((debt) => {
     const remainingText = formatCurrency(debt.remaining);
     const rateText = formatRate(debt.interest_rate);
-    return `${debt.name}｜餘額 ${remainingText}｜利率 ${rateText}%｜到期日 ${debt.due_day}`;
+    const paidText = debt.paidSum > 0 ? `已還 ${formatCurrency(debt.paidSum)}｜` : '';
+    const dueText = debt.due_day ?? '-';
+    return `${debt.name}｜${paidText}餘額 ${remainingText}｜利率 ${rateText}%｜到期日 ${dueText}`;
   });
 
   const bubbles = buildDebtListBubbles(enrichedDebts);
@@ -104,6 +106,27 @@ export async function handleList(lineUserId) {
     flexMessage,
     debts: enrichedDebts,
   };
+}
+
+export async function handlePay(lineUserId, payload) {
+  if (!lineUserId) {
+    return '無法取得使用者識別資訊，請稍後再試 🙏';
+  }
+
+  const user = await findUser(lineUserId);
+  if (!user) {
+    return '找不到債務資料，請先使用 /add 建立清單。';
+  }
+
+  const result = await addPayment({
+    userId: user.id,
+    debtName: payload.debtName,
+    amount: payload.amount,
+    date: payload.date,
+    note: payload.note,
+  });
+
+  return result;
 }
 
 async function ensureUser(lineUserId) {
@@ -161,4 +184,57 @@ async function fetchPaymentSums(debtIds) {
   }
 
   return sums;
+}
+
+export async function addPayment({ userId, debtName, amount, date, note }) {
+  const { data: debts, error } = await supabase
+    .from('debts')
+    .select('id,name')
+    .eq('user_id', userId);
+
+  if (error) {
+    throw error;
+  }
+
+  const normalizedName = (debtName ?? '').trim().toLowerCase();
+  const debt =
+    debts?.find((item) => item.name?.toLowerCase() === normalizedName) ?? null;
+
+  if (!debt) {
+    return `找不到債務「${debtName}」，請確認名稱是否正確。`;
+  }
+
+  const paymentDate = normalizeDateInput(date);
+  const row = {
+    debt_id: debt.id,
+    amount,
+    date: paymentDate,
+    note: note?.trim() ? note.trim() : null,
+  };
+
+  const { error: insertError } = await supabase.from('payments').insert(row);
+  if (insertError) {
+    throw insertError;
+  }
+
+  return `✅ 已登記還款 $${formatCurrency(amount)}（${debt.name}，${paymentDate}）`;
+}
+
+function normalizeDateInput(input) {
+  if (!input) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+    return input;
+  }
+
+  const match = input.match(/^(\d{1,2})[\/.-](\d{1,2})$/);
+  if (match) {
+    const [, month, day] = match;
+    const year = new Date().getFullYear();
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  return new Date().toISOString().slice(0, 10);
 }
