@@ -1,8 +1,8 @@
 # 任務追蹤
 
-- [x] Task 0 – Workspace 初始化 (Done)
-- [ ] Task 1 – 建立 LIFF 前端 (Next)
-- [ ] Task 2 – 建立 Bot Webhook
+- [x] Task 0 – Workspace 初始化
+- [x] Task 1 – 建立 LIFF 前端 (Done)
+- [ ] Task 2 – 建立 Bot Webhook (Next)
 - [ ] Task 3 – Flex Message 與 Rich Menu
 - [ ] Task 4 – 測試與型別
 - [ ] Task 5 – CI（GitHub Actions）
