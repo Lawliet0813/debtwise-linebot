@@ -1,31 +1,27 @@
 {
-  "name": "debtwise-linebot",
-  "version": "1.0.0",
-  "description": "DebtWise AI LINE bot webhook server",
-  "type": "module",
-  "main": "server.js",
-  "scripts": {
-    "dev": "node server.js",
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "keywords": [
-    "line",
-    "webhook",
-    "express"
+  "name": "line-liff-auto",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*"
   ],
-  "author": "",
-  "license": "MIT",
-  "engines": {
-    "node": ">=18"
-  },
-  "dependencies": {
-    "@line/bot-sdk": "^10.3.0",
-    "@supabase/supabase-js": "^2.75.0",
-    "dotenv": "^17.2.3",
-    "express": "^5.1.0"
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:*",
+    "dev:liff": "npm --workspace apps/liff-app run dev",
+    "dev:bot": "npm --workspace apps/bot run dev",
+    "build": "npm-run-all --parallel build:*",
+    "build:liff": "npm --workspace apps/liff-app run build",
+    "build:bot": "npm --workspace apps/bot run build",
+    "test": "npm-run-all --parallel test:*",
+    "test:liff": "npm --workspace apps/liff-app run test",
+    "test:bot": "npm --workspace apps/bot run test",
+    "setup": "node AGENTS/scripts/setup.js",
+    "bot:ngrok": "node apps/bot/scripts/ngrok-template.js",
+    "prepare": "husky install || true",
+    "auto": "node AGENTS/scripts/auto-run.js"
   },
   "devDependencies": {
-    "vitest": "^3.2.4"
+    "husky": "^9.0.0",
+    "npm-run-all": "^4.1.5"
   }
 }

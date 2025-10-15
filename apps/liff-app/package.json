@@ -1,0 +1,10 @@
+{
+  "name": "liff-app",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'LIFF app dev placeholder' && sleep 1",
+    "build": "echo 'LIFF app build placeholder'",
+    "test": "echo 'LIFF app test placeholder'"
+  }
+}

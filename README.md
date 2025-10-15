@@ -1,47 +1,46 @@
-# DebtWise LINE Bot
+# LINE-LIFF-Auto Monorepo
 
-DebtWise 是一個以 Node.js 實作的 LINE Webhook 伺服器，提供債務紀錄、還款追蹤與還款計畫等功能。
+此專案將 LINE Bot 與 LIFF 前端整合於單一 Monorepo，支援自動化開發、測試與部署流程。專案仍在初始化階段，詳盡功能將在後續任務逐步完成。
 
-## 需求條件
+## 結構
 
-- Node.js 18 或以上版本
-- LINE Messaging API Channel（需取得 Channel access token 與 Channel secret）
+```
+.
+├─ apps/
+│  ├─ liff-app/    # LIFF 前端
+│  └─ bot/         # LINE Bot Webhook
+├─ infra/
+│  └─ vercel.json  # （預留）Vercel 部署設定
+├─ AGENTS/         # 自動化代理設定、待辦與紀錄
+└─ package.json    # npm workspaces 與根指令
+```
 
-## 專案初始化
+## 快速開始
 
-1. 安裝依賴：
-   ```bash
-   npm install
-   ```
-2. 建立環境設定：
-   ```bash
-   cp .env.example .env
-   ```
-3. 於 `.env` 填入 LINE 與 Supabase 所需環境變數（僅需 anon key）。
+```bash
+npm install
+npm run dev
+```
 
-## 指令一覽
+目前 `npm run dev` 會啟動前、後端的併發開發指令（暫以 placeholder 取代）。後續任務將逐步補齊實際開發伺服器與測試。
 
-- `/add 名稱 金額 利率% d=到期日 [min=最低還款]`：新增債務並儲存於 Supabase。
-- `/list`：以文字＋Flex Carousel 顯示債務、已還金額與剩餘餘額。
-- `/pay 名稱 金額 [YYYY-MM-DD] [備註]`：記錄單筆還款，並自動更新清單。
-- `/plan 月預算 [雪球|雪崩]`：依雪球或雪崩法計算還款計畫，輸出摘要與 Flex 卡片。
+## 環境變數（預告）
 
-快速回覆列提供常用指令範例，可直接點選發送。
+正式環境將需要以下變數，並會在 Task 1 與 Task 2 中補充 `.env.example` 與 `.env.local` 指引：
 
-## 執行與測試
+```
+VITE_LIFF_ID
+LINE_CHANNEL_ACCESS_TOKEN
+LINE_CHANNEL_SECRET
+APP_BASE_URL
+BOT_BASE_URL
+PORT
+```
 
-- 啟動開發伺服器：
-  ```bash
-  npm run dev
-  ```
-- 健康檢查：`GET /health` 會回傳 `{ ok: true, version }`。
-- 執行測試：
-  ```bash
-  npm test
-  ```
+## 自動化代理
 
-伺服器預設監聽 `.env` 指定的 `PORT`（未設定則為 `3000`），Webhook 入口為 `POST /webhook`。
+詳見 `AGENTS/AGENT.md`。可以透過以下指令啟動自動化流程（目前為占位腳本）：
 
-## 截圖（占位）
-
-> 待補：Flex 清單與還款計畫截圖。
+```bash
+npm run auto
+```

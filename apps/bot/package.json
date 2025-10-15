@@ -1,0 +1,10 @@
+{
+  "name": "bot",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Bot dev placeholder' && sleep 1",
+    "build": "echo 'Bot build placeholder'",
+    "test": "echo 'Bot test placeholder'"
+  }
+}

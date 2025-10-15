@@ -1,2 +1,10 @@
 node_modules/
-.env
+dist/
+.env*
+*.log
+.DS_Store
+.vercel/
+.tmp/
+coverage/
+pnpm-lock.yaml
+*.local

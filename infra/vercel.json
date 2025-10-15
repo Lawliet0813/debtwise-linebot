@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npm --workspace apps/liff-app run build",
+  "outputDirectory": "apps/liff-app/dist"
+}
