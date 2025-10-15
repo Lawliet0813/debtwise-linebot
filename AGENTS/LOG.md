@@ -6,3 +6,4 @@
 2025-10-15T08:23:13Z - Task 3 Flex/Rich Menu：輸出 sample Flex、Rich Menu JSON 與 create/upload/link 腳本，支援 dry-run。
 2025-10-15T11:26:54Z - Task 4 測試與型別：導入 Vitest + Testing Library，Liff/Bot 測試皆通過（HTTP 測試預設可透過 ENABLE_HTTP_TESTS 啟用）。
 2025-10-15T11:29:02Z - Task 5 CI：建立 GitHub Actions (Node 18/20/22) 跑 build 與 test。
+2025-10-15T11:35:34Z - Task 6 部署設定：更新 infra/README、root README，整理 Vercel 與 ngrok/LINE 設定步驟。
