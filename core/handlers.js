@@ -7,11 +7,12 @@ import {
   formatCurrency,
   formatRate,
 } from '../ui/flex.js';
+import { errorTexts } from '../ui/errors.js';
 import { planAvalanche, planSnowball } from './strategy.js';
 
 export async function handleAdd(lineUserId, payload) {
   if (!lineUserId) {
-    return '無法取得使用者識別資訊，請稍後再試 🙏';
+    return errorTexts.missingUser();
   }
 
   const user = await ensureUser(lineUserId);
@@ -27,7 +28,7 @@ export async function handleAdd(lineUserId, payload) {
   const { error } = await supabase.from('debts').insert(row);
   if (error) {
     if (error.code === '23505') {
-      return `「${payload.name}」已存在，請換個名稱或使用 /list 查詢。`;
+      return errorTexts.debtExists(payload.name);
     }
     throw error;
   }
@@ -41,7 +42,7 @@ export async function handleAdd(lineUserId, payload) {
 export async function handleList(lineUserId) {
   if (!lineUserId) {
     return {
-      text: '無法取得使用者識別資訊，請稍後再試 🙏',
+      text: errorTexts.missingUser(),
     };
   }
 
@@ -49,7 +50,7 @@ export async function handleList(lineUserId) {
   if (!user) {
     const bubble = buildEmptyListBubble();
     return {
-      text: '目前沒有債務紀錄，輸入 /add 開始新增吧！',
+      text: errorTexts.noDebts(),
       flexMessage: buildFlexMessage([bubble], '債務清單（空）'),
       debts: [],
     };
@@ -69,7 +70,7 @@ export async function handleList(lineUserId) {
   if (!debts || debts.length === 0) {
     const bubble = buildEmptyListBubble();
     return {
-      text: '目前沒有債務紀錄，輸入 /add 開始新增吧！',
+      text: errorTexts.noDebts(),
       flexMessage: buildFlexMessage([bubble], '債務清單（空）'),
       debts: [],
     };
@@ -112,12 +113,12 @@ export async function handleList(lineUserId) {
 
 export async function handlePay(lineUserId, payload) {
   if (!lineUserId) {
-    return '無法取得使用者識別資訊，請稍後再試 🙏';
+    return errorTexts.missingUser();
   }
 
   const user = await findUser(lineUserId);
   if (!user) {
-    return '找不到債務資料，請先使用 /add 建立清單。';
+    return errorTexts.noDebts();
   }
 
   const result = await addPayment({
@@ -134,14 +135,14 @@ export async function handlePay(lineUserId, payload) {
 export async function handlePlan(lineUserId, payload) {
   if (!lineUserId) {
     return {
-      text: '無法取得使用者識別資訊，請稍後再試 🙏',
+      text: errorTexts.missingUser(),
     };
   }
 
   const user = await findUser(lineUserId);
   if (!user) {
     return {
-      text: '目前沒有債務紀錄，輸入 /add 開始新增吧！',
+      text: errorTexts.noDebts(),
     };
   }
 
@@ -157,7 +158,7 @@ export async function handlePlan(lineUserId, payload) {
 
   if (!debts || debts.length === 0) {
     return {
-      text: '目前沒有債務紀錄，輸入 /add 開始新增吧！',
+      text: errorTexts.noDebts(),
     };
   }
 
@@ -178,7 +179,7 @@ export async function handlePlan(lineUserId, payload) {
 
   if (planningDebts.length === 0) {
     return {
-      text: '所有債務都已結清，太棒了！',
+      text: errorTexts.allCleared(),
     };
   }
 
@@ -189,7 +190,7 @@ export async function handlePlan(lineUserId, payload) {
   const result = planner(planningDebts, monthlyBudget);
   if (result.error) {
     return {
-      text: result.error,
+      text: errorTexts.budgetTooLow(),
     };
   }
 
@@ -314,7 +315,7 @@ export async function addPayment({ userId, debtName, amount, date, note }) {
     debts?.find((item) => item.name?.toLowerCase() === normalizedName) ?? null;
 
   if (!debt) {
-    return `找不到債務「${debtName}」，請確認名稱是否正確。`;
+    return errorTexts.debtNotFound(debtName);
   }
 
   const paymentDate = normalizeDateInput(date);

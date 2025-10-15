@@ -1,3 +1,5 @@
+import { errorTexts } from '../ui/errors.js';
+
 const SUPPORTED_COMMANDS = new Set(['add', 'list', 'pay', 'plan']);
 
 const NUMBER_REGEXP = /^-?\d+(?:\.\d+)?$/;
@@ -10,7 +12,7 @@ export function parseCommand(text) {
   if (typeof text !== 'string' || !text.trim()) {
     return {
       type: 'invalid',
-      error: '請輸入指令，例如 /add 或 /list。',
+      error: errorTexts.emptyCommand(),
     };
   }
 
@@ -20,7 +22,7 @@ export function parseCommand(text) {
   if (!rawCommand.startsWith('/')) {
     return {
       type: 'invalid',
-      error: '指令需以 / 開頭，請再試一次 🙏',
+      error: errorTexts.missingSlash(),
     };
   }
 
@@ -28,7 +30,7 @@ export function parseCommand(text) {
   if (!SUPPORTED_COMMANDS.has(command)) {
     return {
       type: 'unknown',
-      error: `不支援的指令：${rawCommand}。輸入 /help 查看完整指令列表。`,
+      error: errorTexts.unsupportedCommand(rawCommand),
     };
   }
 
@@ -103,7 +105,7 @@ function parseAddCommand(args) {
       if (parsed < 1 || parsed > 31) {
         return {
           type: 'invalid',
-          error: '到期日需介於 1 到 31 之間。',
+        error: '到期日需介於 1 到 31 之間。',
         };
       }
       dueDay = parsed;
@@ -116,7 +118,7 @@ function parseAddCommand(args) {
       if (parsed < 0) {
         return {
           type: 'invalid',
-          error: '最低繳款需為 0 或正數。',
+        error: '最低繳款需為 0 或正數。',
         };
       }
       minPayment = parsed;
