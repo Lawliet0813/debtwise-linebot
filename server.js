@@ -15,6 +15,10 @@ const config = {
   channelSecret: process.env.LINE_CHANNEL_SECRET || ''
 };
 
+if (!config.channelAccessToken || !config.channelSecret) {
+  throw new Error('缺少 LINE_CHANNEL_ACCESS_TOKEN 或 LINE_CHANNEL_SECRET，請更新 .env 後重新啟動伺服器。');
+}
+
 const { version } = pkg;
 
 assertSupabaseEnv();
