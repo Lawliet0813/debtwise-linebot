@@ -46,6 +46,17 @@ describe('bot application', () => {
     expect(res.body.type).toBe('bubble');
   });
 
+  maybe('verifies id token structure', async () => {
+    const ok = await request(app)
+      .post('/api/verify-idtoken')
+      .set('authorization', 'Bearer header.token.value')
+      .send({ token: 'ignored.value.here' });
+    expect(ok.status).toBe(200);
+
+    const bad = await request(app).post('/api/verify-idtoken').send({ token: 'invalid-token' });
+    expect(bad.status).toBe(400);
+  });
+
   maybe('handles "開啟儀表板" message via webhook', async () => {
     const event = {
       replyToken: 'reply-token',

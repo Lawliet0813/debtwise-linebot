@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { useLiff } from './hooks/useLiff';
 import { motion } from 'framer-motion';
@@ -86,7 +87,50 @@ function DashboardPage({
 }: {
   state: ReturnType<typeof useLiff>;
 }) {
-  const { profile, status, error, refresh } = state;
+  const { profile, status, error, refresh, idToken } = state;
+  const [verifyStatus, setVerifyStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [verifyMessage, setVerifyMessage] = useState<string>('尚未驗證 LIFF ID Token');
+
+  useEffect(() => {
+    if (!idToken) {
+      setVerifyStatus('idle');
+      setVerifyMessage('尚未取得 ID Token');
+      return;
+    }
+
+    let cancelled = false;
+    setVerifyStatus('loading');
+    setVerifyMessage('正在驗證 ID Token…');
+
+    fetch('/api/verify-idtoken', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ token: idToken }),
+    })
+      .then(async (res) => {
+        const payload = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok && payload.ok) {
+          setVerifyStatus('success');
+          setVerifyMessage(payload.message ?? 'ID Token 檢查通過（尚未驗證簽章）');
+        } else {
+          setVerifyStatus('error');
+          setVerifyMessage(payload.error ?? '伺服器回傳錯誤');
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setVerifyStatus('error');
+        setVerifyMessage('ID Token 驗證失敗，請稍後再試。');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [idToken]);
 
   if (status === 'loading') {
     return (
@@ -129,6 +173,10 @@ function DashboardPage({
             title="圖片"
             value={profile.pictureUrl ? <img src={profile.pictureUrl} alt="profile" className="h-20 w-20 rounded-full object-cover" /> : '無'}
           />
+        </div>
+
+        <div className="mt-6">
+          <VerificationBadge status={verifyStatus} message={verifyMessage} />
         </div>
 
         <div className="mt-8 flex flex-wrap gap-3">
@@ -245,6 +293,25 @@ function SecondaryButton({ children, onClick }: { children: ReactNode; onClick: 
     >
       {children}
     </button>
+  );
+}
+
+function VerificationBadge({ status, message }: { status: 'idle' | 'loading' | 'success' | 'error'; message: string }) {
+  const color =
+    status === 'success'
+      ? 'bg-green-100 text-green-700 border-green-200'
+      : status === 'error'
+        ? 'bg-red-100 text-red-700 border-red-200'
+        : 'bg-slate-100 text-slate-600 border-slate-200';
+
+  return (
+    <div className={`flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm ${color}`}>
+      <span className="h-2 w-2 rounded-full bg-current"></span>
+      <span>{message}</span>
+      {status === 'error' ? (
+        <span className="text-xs text-slate-500">正式環境請使用 LINE OpenID 公鑰驗證簽章。</span>
+      ) : null}
+    </div>
   );
 }
 

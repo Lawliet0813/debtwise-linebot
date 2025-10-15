@@ -19,6 +19,27 @@ export function createApp({ lineConfig, lineClient, liffId }) {
     res.json(getSampleFlex());
   });
 
+  const apiRouter = express.Router();
+  apiRouter.use(express.json());
+  apiRouter.post('/verify-idtoken', (req, res) => {
+    const headerToken = req.headers.authorization?.toString().replace(/^Bearer\s+/i, '') ?? '';
+    const bodyToken = typeof req.body?.token === 'string' ? req.body.token : '';
+    const token = headerToken || bodyToken;
+
+    if (!token) {
+      return res.status(400).json({ ok: false, error: '缺少 ID Token，請確認 Authorization header 或 JSON body。' });
+    }
+
+    const segments = token.split('.');
+    if (segments.length !== 3) {
+      return res.status(400).json({ ok: false, error: 'ID Token 格式不正確。', todo: '正式環境請使用 LINE OpenID 公鑰驗證簽章。' });
+    }
+
+    return res.json({ ok: true, message: 'ID Token 結構檢查通過（TODO: 驗證簽章）' });
+  });
+
+  app.use('/api', apiRouter);
+
   const handleEvent = createEventHandler({
     client: lineClient,
     liffId,

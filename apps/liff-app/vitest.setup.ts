@@ -25,3 +25,10 @@ vi.mock('@line/liff', () => {
 
   return { default: liff, ...liff };
 });
+
+vi.stubGlobal('fetch', vi.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: async () => ({ ok: true, message: 'mock verified' }),
+  }),
+));
