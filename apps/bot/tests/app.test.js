@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { createApp } from '../src/app.js';
 import { createEventHandler } from '../src/handlers.js';
 import { loadDashboardFlex } from '../src/flex.js';
+import * as verifyIdTokenModule from '../src/verifyIdToken.js';
 
 const channelSecret = 'test-secret';
 const channelToken = 'test-token';
@@ -21,6 +22,8 @@ describe('bot application', () => {
   const networkAvailable = process.env.ENABLE_HTTP_TESTS === 'true';
 
   beforeEach(() => {
+    vi.restoreAllMocks();
+    process.env.LINE_CHANNEL_ID = 'CHANNEL_ID';
     replyMessage = vi.fn().mockResolvedValue(undefined);
     app = createApp({
       lineConfig: {
@@ -47,12 +50,16 @@ describe('bot application', () => {
   });
 
   maybe('verifies id token structure', async () => {
+    const spy = vi.spyOn(verifyIdTokenModule, 'verifyIdToken');
+    spy.mockResolvedValueOnce({ sub: 'U123' });
     const ok = await request(app)
       .post('/api/verify-idtoken')
       .set('authorization', 'Bearer header.token.value')
       .send({ token: 'ignored.value.here' });
     expect(ok.status).toBe(200);
+    expect(ok.body.payload.sub).toBe('U123');
 
+    spy.mockRejectedValueOnce(new Error('Invalid token'));
     const bad = await request(app).post('/api/verify-idtoken').send({ token: 'invalid-token' });
     expect(bad.status).toBe(400);
   });

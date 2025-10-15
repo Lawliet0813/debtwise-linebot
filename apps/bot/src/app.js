@@ -2,6 +2,7 @@ import express from 'express';
 import { middleware } from '@line/bot-sdk';
 import { createEventHandler } from './handlers.js';
 import { getSampleFlex, loadDashboardFlex } from './flex.js';
+import { verifyIdToken } from './verifyIdToken.js';
 
 export function createApp({ lineConfig, lineClient, liffId }) {
   if (!lineConfig?.channelAccessToken || !lineConfig?.channelSecret) {
@@ -21,7 +22,7 @@ export function createApp({ lineConfig, lineClient, liffId }) {
 
   const apiRouter = express.Router();
   apiRouter.use(express.json());
-  apiRouter.post('/verify-idtoken', (req, res) => {
+  apiRouter.post('/verify-idtoken', async (req, res) => {
     const headerToken = req.headers.authorization?.toString().replace(/^Bearer\s+/i, '') ?? '';
     const bodyToken = typeof req.body?.token === 'string' ? req.body.token : '';
     const token = headerToken || bodyToken;
@@ -30,12 +31,15 @@ export function createApp({ lineConfig, lineClient, liffId }) {
       return res.status(400).json({ ok: false, error: '缺少 ID Token，請確認 Authorization header 或 JSON body。' });
     }
 
-    const segments = token.split('.');
-    if (segments.length !== 3) {
-      return res.status(400).json({ ok: false, error: 'ID Token 格式不正確。', todo: '正式環境請使用 LINE OpenID 公鑰驗證簽章。' });
+    const channelId = process.env.LINE_CHANNEL_ID ?? process.env.VITE_LIFF_ID;
+    try {
+      const payload = await verifyIdToken(token, channelId);
+      return res.json({ ok: true, payload });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'ID Token 驗證失敗';
+      const status = /缺少 LINE Channel ID/.test(message) ? 500 : 400;
+      return res.status(status).json({ ok: false, error: message, todo: '正式環境請使用 LINE OpenID 公鑰驗證簽章。' });
     }
-
-    return res.json({ ok: true, message: 'ID Token 結構檢查通過（TODO: 驗證簽章）' });
   });
 
   app.use('/api', apiRouter);

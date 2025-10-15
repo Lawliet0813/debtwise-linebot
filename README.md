@@ -73,6 +73,7 @@ PORT=3000
 
 ### Bot Server
 - `LINE_CHANNEL_ACCESS_TOKEN` / `LINE_CHANNEL_SECRET`：Messaging API 基本設定
+- `LINE_CHANNEL_ID`：與 Channel access token 配對的 Channel ID（用於驗證 LIFF ID Token）
 - `VITE_LIFF_ID`：供 Flex 按鈕導引至 LIFF URL
 - `PORT`：預設 3000，可依部署平臺調整
 
