@@ -8,4 +8,6 @@
 - [x] Task 5 – CI（GitHub Actions）
 - [x] Task 6 – 部署設定
 - [x] Task 7 – 安全與後端對接
-- [x] Task 8 – 一鍵腳本與開發體驗 (Done)
+- [x] Task 8 – 一鍵腳本與開發體驗
+- [x] Task 9 – 健康檢查與端點驗收
+- [x] Task 10 – GitHub Actions 自動部署

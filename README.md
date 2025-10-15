@@ -35,8 +35,14 @@ npm run dev       # 併發啟動 LIFF 與 Bot（需於各自 workspace 設定 .e
 | `npm run dev` | 併發啟動 `dev:liff` 與 `dev:bot` |
 | `npm run build` | 併發執行前、後端 build |
 | `npm run test` | 併發執行前、後端測試（bot HTTP 測試預設跳過，可設 `ENABLE_HTTP_TESTS=true` 啟用） |
-| `npm run bot:ngrok` | 快速啟動 ngrok 隧道（需安裝 ngrok CLI） |
-| `npm run setup` | （預留）自動化初始設定腳本 |
+| `npm run bot:ngrok` | 顯示 ngrok 隧道啟動與 Webhook 設定指引 |
+| `npm run richmenu:create` | 以 dry-run 模式建立 Rich Menu payload |
+| `npm run richmenu:upload` | Dry-run：顯示圖片上傳請求 |
+| `npm run richmenu:link` / `:unlink` | Dry-run：綁定或解除使用者與 Rich Menu |
+| `npm run richmenu:delete:all` | Dry-run：列出並刪除所有 Rich Menu |
+| `npm run health` | 健康檢查腳本（前端/後端/Flex/Rich Menu） |
+| `npm run deploy:vercel[:*]` | Vercel CLI 模板（link / env / deploy） |
+| `npm run setup` | 自動化初始設定腳本（建立 .env.local、Flex 範本等） |
 | `npm run auto` | 自動代理流程（詳見 `AGENTS/AGENT.md`） |
 
 ## 環境變數
@@ -95,17 +101,36 @@ PORT=3000
 
 ## 部署
 
-### Vercel（LIFF）
-1. 連結 GitHub Repository。
-2. Build Command：`npm --workspace apps/liff-app run build`
-3. Output Directory：`apps/liff-app/dist`
-4. 設定環境變數 `VITE_LIFF_ID`、`APP_BASE_URL`。
+### Vercel（LIFF 前端）
+1. `npm i -g vercel`
+2. `npm run deploy:vercel:link`（或手動 `vercel link --yes`）
+3. `npm run deploy:vercel:env` → 選擇 `VITE_LIFF_ID` 並填入正式 LIFF ID
+4. `npm run deploy:vercel` 或 `vercel deploy --prod`
 
-### Bot（Render / Fly.io / 自管主機）
-- 設定環境變數：`LINE_CHANNEL_ACCESS_TOKEN`、`LINE_CHANNEL_SECRET`、`VITE_LIFF_ID`、`PORT`。
-- 使用 `npm run bot:ngrok` 可快速測試 Webhook。
+> Build Command：`npm --workspace apps/liff-app run build`
+  Output Directory：`apps/liff-app/dist`
 
-詳見 `infra/README.md`。
+### Bot 暫時部署（ngrok）
+1. `npm i -g ngrok`（首次安裝）
+2. `npm run bot:ngrok` 取得啟動指令與 LINE Webhook 設定教學
+3. 將 `https://<隧道>/webhook` 填入 Messaging API → Webhook URL，並使用範例 curl 測試
+
+### Bot 正式部署模板（Render / Railway 等）
+- 需設定環境變數：`LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `VITE_LIFF_ID`, `PORT`
+- 入口指令：`npm --workspace apps/bot run dev`（開發）或自行建立啟動腳本
+- 可參考 `infra/README.md` 了解更多部署細節
+
+### GitHub Secrets 設定（Vercel 自動部署）
+1. 於本機登入 Vercel，使用 CLI 取得必要資訊：
+   ```bash
+   vercel projects ls       # 查詢 PROJECT_ID
+   vercel whoami            # 檢查帳戶（ORG_ID 可由 CLI or 控制台取得）
+   ```
+2. 於 GitHub Repository → Settings → Secrets and variables → Actions 建立：
+   - `VERCEL_TOKEN`：`vercel login` 後使用 `vercel -t <token>` 取得
+   - `VERCEL_ORG_ID`：可至 Vercel 控制台或 API 查詢
+   - `VERCEL_PROJECT_ID`：對應 apps/liff-app 的專案 ID
+3. 完成後，push 到 main 會觸發 `.github/workflows/deploy.yml` 自動部署。
 
 ## LINE Developers 設定指引
 

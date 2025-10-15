@@ -9,3 +9,9 @@
 2025-10-15T11:35:34Z - Task 6 部署設定：更新 infra/README、root README，整理 Vercel 與 ngrok/LINE 設定步驟。
 2025-10-15T11:39:14Z - Task 7 安全與後端：新增 /api/verify-idtoken 與 LIFF 前端 dashboard 呼叫流程，提醒正式環境需驗證簽章。
 2025-10-15T11:44:42Z - Task 8 一鍵腳本：實作 setup/auto-run 腳本、維護 ngrok 與 Flex 產生流程。
+2025-10-15T12:19:19Z - Task 6 Deployment Extension：已建立 Vercel 指令模板與 deploy:vercel scripts。
+2025-10-15T12:19:29Z - Task 7 Deployment Extension：已輸出 ngrok 指令模板並補充 Render/Railway 環境變數指引。
+2025-10-15T12:19:41Z - Task 8 Deployment Extension：Rich Menu 腳本支援 dry-run（建立/link/unlink/delete）。
+2025-10-15T12:30:02Z - Task 9 Deployment Extension：執行 health-check 指令模板，提供前後端/Flex/Rich Menu 驗證。
+2025-10-15T12:30:13Z - Task 10 Deployment Extension：新增 Vercel deploy workflow 與 GitHub Secrets 教學。
+2025-10-15T12:30:22Z - Final Summary：Vercel 指令與自動部署完成，ngrok/Rich Menu 腳本支援 dry-run，health-check 提供前後端/Flex/Rich Menu 驗證，CI + deploy workflow 就緒。
