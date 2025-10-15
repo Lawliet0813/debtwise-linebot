@@ -39,7 +39,7 @@ const template = {
         action: {
           type: 'uri',
           label: '開啟儀表板',
-          uri: 'https://liff.line.me/${VITE_LIFF_ID}',
+          uri: 'https://liff.line.me/2008296112-71xZl1do',
         },
       },
     ],

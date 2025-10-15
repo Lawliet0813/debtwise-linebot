@@ -15,3 +15,4 @@
 2025-10-15T12:30:02Z - Task 9 Deployment Extension：執行 health-check 指令模板，提供前後端/Flex/Rich Menu 驗證。
 2025-10-15T12:30:13Z - Task 10 Deployment Extension：新增 Vercel deploy workflow 與 GitHub Secrets 教學。
 2025-10-15T12:30:22Z - Final Summary：Vercel 指令與自動部署完成，ngrok/Rich Menu 腳本支援 dry-run，health-check 提供前後端/Flex/Rich Menu 驗證，CI + deploy workflow 就緒。
+2025-10-15T16:11:33Z - Health Check: 前端/後端未啟動（fetch failed），Flex & Rich Menu JSON 通過。
