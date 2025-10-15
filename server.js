@@ -5,7 +5,7 @@ import { info, error } from './utils/logger.js';
 import { assertSupabaseEnv } from './lib/supabase.js';
 import pkg from './package.json' with { type: 'json' };
 import { parseCommand } from './core/commands.js';
-import { handleAdd, handleList, handlePay } from './core/handlers.js';
+import { handleAdd, handleList, handlePay, handlePlan } from './core/handlers.js';
 
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
@@ -71,6 +71,20 @@ async function handleEvent(event) {
           type: 'text',
           text: await handlePay(lineUserId, commandResult.payload),
         });
+        break;
+      case 'plan':
+        {
+          const result = await handlePlan(lineUserId, commandResult.payload);
+          if (result.text) {
+            replyMessages.push({
+              type: 'text',
+              text: result.text,
+            });
+          }
+          if (result.flexMessage) {
+            replyMessages.push(result.flexMessage);
+          }
+        }
         break;
       case 'invalid':
       case 'unknown':

@@ -3,9 +3,11 @@ import {
   buildDebtListBubbles,
   buildEmptyListBubble,
   buildFlexMessage,
+  buildPlanBubble,
   formatCurrency,
   formatRate,
 } from '../ui/flex.js';
+import { planAvalanche, planSnowball } from './strategy.js';
 
 export async function handleAdd(lineUserId, payload) {
   if (!lineUserId) {
@@ -127,6 +129,117 @@ export async function handlePay(lineUserId, payload) {
   });
 
   return result;
+}
+
+export async function handlePlan(lineUserId, payload) {
+  if (!lineUserId) {
+    return {
+      text: '無法取得使用者識別資訊，請稍後再試 🙏',
+    };
+  }
+
+  const user = await findUser(lineUserId);
+  if (!user) {
+    return {
+      text: '目前沒有債務紀錄，輸入 /add 開始新增吧！',
+    };
+  }
+
+  const { data: debts, error } = await supabase
+    .from('debts')
+    .select('id,name,balance,interest_rate,min_payment,created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  if (!debts || debts.length === 0) {
+    return {
+      text: '目前沒有債務紀錄，輸入 /add 開始新增吧！',
+    };
+  }
+
+  const debtIds = debts.map((debt) => debt.id);
+  const paymentSums = await fetchPaymentSums(debtIds);
+
+  const planningDebts = debts
+    .map((debt) => {
+      const paidSum = paymentSums.get(debt.id) ?? 0;
+      const remaining = Math.max(Number(debt.balance || 0) - paidSum, 0);
+      return {
+        ...debt,
+        paidSum,
+        remaining,
+      };
+    })
+    .filter((debt) => debt.remaining > 0);
+
+  if (planningDebts.length === 0) {
+    return {
+      text: '所有債務都已結清，太棒了！',
+    };
+  }
+
+  const method = payload.method ?? 'avalanche';
+  const monthlyBudget = payload.monthlyBudget;
+  const planner = method === 'snowball' ? planSnowball : planAvalanche;
+
+  const result = planner(planningDebts, monthlyBudget);
+  if (result.error) {
+    return {
+      text: result.error,
+    };
+  }
+
+  const methodLabel = method === 'snowball' ? '雪球法' : '雪崩法';
+  const totalMonths = result.payoffMonthIndex;
+  const totalInterest = result.totalInterest;
+  const totalPayment = result.schedule.reduce(
+    (total, month) =>
+      total +
+      month.items.reduce((monthSum, item) => monthSum + Number(item.pay || 0), 0),
+    0,
+  );
+
+  const flexBubble = buildPlanBubble({
+    methodLabel,
+    monthlyBudget,
+    totalMonths,
+    totalInterest,
+    firstMonth: result.schedule[0],
+  });
+  const flexMessage = buildFlexMessage(
+    [flexBubble],
+    `${methodLabel} 還款計畫`,
+  );
+
+  const { error: planError } = await supabase.from('plans').insert({
+    user_id: user.id,
+    method,
+    monthly_budget: monthlyBudget,
+    generated_plan: {
+      totalInterest,
+      payoffMonths: totalMonths,
+      schedule: result.schedule,
+    },
+  });
+
+  if (planError) {
+    throw planError;
+  }
+
+  const summary = [
+    `📊 ${methodLabel} 規劃完成`,
+    `預估 ${totalMonths} 個月還清，月預算 $${formatCurrency(monthlyBudget)}。`,
+    `總利息約 $${formatCurrency(totalInterest)}，總支出約 $${formatCurrency(totalPayment)}。`,
+  ];
+
+  return {
+    text: summary.join('\n'),
+    flexMessage,
+  };
 }
 
 async function ensureUser(lineUserId) {

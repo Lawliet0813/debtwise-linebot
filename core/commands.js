@@ -236,7 +236,7 @@ function parsePlanCommand(args) {
   }
 
   const methodRaw = methodTokens.join(' ').trim();
-  let method;
+  let method = 'avalanche';
   if (methodRaw) {
     const normalized = methodRaw.toLowerCase();
     if (['雪崩', '雪崩法', 'avalanche'].includes(normalized)) {

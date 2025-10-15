@@ -173,3 +173,82 @@ function buildOverflowBubble(remainingCount) {
     },
   };
 }
+
+export function buildPlanBubble({
+  methodLabel,
+  monthlyBudget,
+  totalMonths,
+  totalInterest,
+  firstMonth,
+}) {
+  const contents = [
+    {
+      type: 'text',
+      text: `${methodLabel} 還款計畫`,
+      weight: 'bold',
+      size: 'lg',
+      wrap: true,
+    },
+    {
+      type: 'text',
+      text: `💵 月預算：$${formatCurrency(monthlyBudget)}`,
+      wrap: true,
+    },
+    {
+      type: 'text',
+      text: `⏱️ 預估 ${totalMonths} 個月清償`,
+      wrap: true,
+    },
+    {
+      type: 'text',
+      text: `💸 總利息：約 $${formatCurrency(totalInterest)}`,
+      wrap: true,
+    },
+  ];
+
+  if (firstMonth && Array.isArray(firstMonth.items) && firstMonth.items.length > 0) {
+    const topItems = firstMonth.items.slice(0, 4);
+    const hasMore = firstMonth.items.length > topItems.length;
+
+    contents.push({
+      type: 'box',
+      layout: 'vertical',
+      margin: 'md',
+      spacing: 'sm',
+      contents: [
+        {
+          type: 'text',
+          text: `📅 第 ${firstMonth.monthIndex} 個月分配`,
+          weight: 'bold',
+          size: 'sm',
+        },
+        ...topItems.map((item) => ({
+          type: 'text',
+          text: `• ${clip(item.name)}：$${formatCurrency(item.pay)}`,
+          size: 'sm',
+          wrap: true,
+        })),
+        ...(hasMore
+          ? [
+              {
+                type: 'text',
+                text: '…還有其他債務持續繳款',
+                size: 'xs',
+                color: '#888888',
+              },
+            ]
+          : []),
+      ],
+    });
+  }
+
+  return {
+    type: 'bubble',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'sm',
+      contents,
+    },
+  };
+}

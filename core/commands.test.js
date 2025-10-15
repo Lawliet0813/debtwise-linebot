@@ -75,4 +75,16 @@ describe('parseCommand', () => {
       },
     });
   });
+
+  it('defaults plan method to avalanche when missing', () => {
+    const result = parseCommand('/plan 25000');
+
+    expect(result).toEqual({
+      type: 'plan',
+      payload: {
+        monthlyBudget: 25000,
+        method: 'avalanche',
+      },
+    });
+  });
 });
