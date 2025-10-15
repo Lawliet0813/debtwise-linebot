@@ -18,3 +18,5 @@
 2025-10-15T16:11:33Z - Health Check: 前端/後端未啟動（fetch failed），Flex & Rich Menu JSON 通過。
 2025-10-15T17:38:36Z - Health Check (FRONT_URL=https://liff-o1hccpt3o-lawliets-projects-48279a7c.vercel.app/health.txt): 前端/後端 fetch failed (可能無法連線)，Flex & Rich Menu JSON 通過。
 2025-10-15T17:53:21Z - Security: /api/verify-idtoken 改為使用 LINE OpenID 公鑰（jose），新增 LINE_CHANNEL_ID 環境需求並更新測試。
+2025-10-15T17:58:12Z - Auth: 導入 jose 驗證 LINE ID Token，新增 LOGIN_CHANNEL_ID/LOGIN_ISSUER 並更新測試覆蓋。
+2025-10-15T18:31:15Z - Patch: 更新 LINE_CHANNEL_SECRET、調整 webhook handler，新增 ngrok 指令 (bot:ngrok)。

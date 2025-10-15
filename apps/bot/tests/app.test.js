@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { createApp } from '../src/app.js';
 import { createEventHandler } from '../src/handlers.js';
 import { loadDashboardFlex } from '../src/flex.js';
-import * as verifyIdTokenModule from '../src/verifyIdToken.js';
+import * as verifyLineIdTokenModule from '../lib/auth/verifyLineIdToken.js';
 
 const channelSecret = 'test-secret';
 const channelToken = 'test-token';
@@ -50,7 +50,7 @@ describe('bot application', () => {
   });
 
   maybe('verifies id token structure', async () => {
-    const spy = vi.spyOn(verifyIdTokenModule, 'verifyIdToken');
+    const spy = vi.spyOn(verifyLineIdTokenModule, 'verifyLineIdToken');
     spy.mockResolvedValueOnce({ sub: 'U123' });
     const ok = await request(app)
       .post('/api/verify-idtoken')

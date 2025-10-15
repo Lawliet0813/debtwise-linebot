@@ -2,7 +2,7 @@ import express from 'express';
 import { middleware } from '@line/bot-sdk';
 import { createEventHandler } from './handlers.js';
 import { getSampleFlex, loadDashboardFlex } from './flex.js';
-import { verifyIdToken } from './verifyIdToken.js';
+import { verifyLineIdToken } from '../lib/auth/verifyLineIdToken.js';
 
 export function createApp({ lineConfig, lineClient, liffId }) {
   if (!lineConfig?.channelAccessToken || !lineConfig?.channelSecret) {
@@ -31,9 +31,10 @@ export function createApp({ lineConfig, lineClient, liffId }) {
       return res.status(400).json({ ok: false, error: '缺少 ID Token，請確認 Authorization header 或 JSON body。' });
     }
 
-    const channelId = process.env.LINE_CHANNEL_ID ?? process.env.VITE_LIFF_ID;
+    const channelId = process.env.LOGIN_CHANNEL_ID ?? process.env.LINE_CHANNEL_ID ?? process.env.VITE_LIFF_ID;
+    const issuer = process.env.LOGIN_ISSUER ?? 'https://access.line.me';
     try {
-      const payload = await verifyIdToken(token, channelId);
+      const payload = await verifyLineIdToken(token, channelId, issuer);
       return res.json({ ok: true, payload });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'ID Token 驗證失敗';
@@ -50,24 +51,16 @@ export function createApp({ lineConfig, lineClient, liffId }) {
     flexBuilder: loadDashboardFlex,
   });
 
-  app.post(
-    '/webhook',
-    middleware(lineConfig),
-    async (req, res, next) => {
-      try {
-        const results = await Promise.all(req.body.events.map(handleEvent));
-        res.json(results);
-      } catch (err) {
-        next(err);
-      }
-    },
-  );
-
-  app.use((err, req, res, next) => {
-    // eslint-disable-line @typescript-eslint/no-unused-vars
-    console.error('[Bot] error:', err);
-    res.status(500).json({ error: 'Webhook 處理失敗' });
+  app.post('/webhook', middleware(lineConfig), async (req, res) => {
+    try {
+      await Promise.all(req.body.events.map(handleEvent));
+      res.status(200).end();
+    } catch (error) {
+      console.error('[Webhook Error]', error);
+      res.status(500).json({ error: 'Webhook handler failed' });
+    }
   });
+
 
   return app;
 }

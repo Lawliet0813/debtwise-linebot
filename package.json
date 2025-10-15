@@ -16,7 +16,7 @@
     "test:liff": "npm --workspace apps/liff-app run test",
     "test:bot": "npm --workspace apps/bot run test",
     "setup": "node AGENTS/scripts/setup.js",
-    "bot:ngrok": "node apps/bot/scripts/ngrok-start.js",
+    "bot:ngrok": "cd apps/bot && npx ngrok http 3000",
     "deploy:vercel:link": "vercel link --yes",
     "deploy:vercel:env": "vercel env add VITE_LIFF_ID",
     "deploy:vercel": "vercel deploy --prod",
