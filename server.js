@@ -8,6 +8,7 @@ import { parseCommand } from './core/commands.js';
 import { handleAdd, handleList, handlePay, handlePlan } from './core/handlers.js';
 import { buildMainQuickReply } from './ui/replies.js';
 import { errorTexts } from './ui/errors.js';
+import { allowRequest } from './utils/rateLimiter.js';
 
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
@@ -43,6 +44,20 @@ async function handleEvent(event) {
   }
 
   const lineUserId = event.source?.userId ?? null;
+  const rateKey =
+    event.source?.userId ?? event.source?.groupId ?? event.source?.roomId ?? 'anonymous';
+
+  if (!allowRequest(rateKey)) {
+    info('Rate limit triggered', rateKey);
+    const limiterMessage = {
+      type: 'text',
+      text: errorTexts.rateLimited(),
+      quickReply: buildMainQuickReply(),
+    };
+    await client.replyMessage(event.replyToken, [limiterMessage]);
+    return null;
+  }
+
   const commandResult = parseCommand(event.message.text);
   const replyMessages = [];
 
@@ -100,14 +115,23 @@ async function handleEvent(event) {
         pushText('指令尚未支援，輸入 /help 查看可用指令。');
     }
   } catch (err) {
-    error('Command handling failed', err);
+    const detail = err?.response?.data ?? err?.message ?? err;
+    error('Command handling failed', detail);
     replyMessages.length = 0;
     pushText(errorTexts.systemBusy());
   }
 
-  const messages = replyMessages.length > 0 ? replyMessages : [{ type: 'text', text: '指令尚未支援，輸入 /help 查看可用指令。' }];
+  if (replyMessages.length === 0) {
+    pushText('指令尚未支援，輸入 /help 查看可用指令。');
+  }
 
-  return client.replyMessage(event.replyToken, messages);
+  await client.replyMessage(event.replyToken, replyMessages);
+  info('Reply delivered', {
+    user: lineUserId ?? 'unknown',
+    command: commandResult.type,
+    messages: replyMessages.length,
+  });
+  return null;
 }
 
 export const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
