@@ -1,24 +1,30 @@
 # Database Setup (Supabase)
 
-This project stores its structured data in Supabase Postgres. The repository includes SQL scripts for creating the schema and loading demo data so that you can bootstrap a new project quickly.
+Use these steps to provision the DebtWise schema and demo data in Supabase.
 
-## Files
+## 1. Apply the schema
 
-- [`db/schema.sql`](../db/schema.sql) – creates the database tables, indexes, and triggers required by the bot.
-- [`db/seed.sql`](../db/seed.sql) – inserts a demo LINE user and two example debts.
+1. Sign in to the [Supabase dashboard](https://app.supabase.com/), open your project, and launch the **SQL Editor**.
+2. Create a **New query**, paste the contents of [`db/schema.sql`](../db/schema.sql), then click **Run**.  
+   The script creates required extensions, tables, indexes, and the `v_due_overview` view.
 
-## Apply the schema in Supabase
+## 2. Load demo data
 
-1. Sign in to the [Supabase dashboard](https://app.supabase.com/), open your project, and go to **SQL Editor**.
-2. Click **New query**, then press **Upload file** or paste the contents of `db/schema.sql` into the editor.
-3. Ensure the SQL editor is pointed at the `public` schema, then click **Run**. Supabase will create the tables, indexes, and trigger defined in the script. You should see a success notification.
+1. Open another **New query** tab.
+2. Paste the contents of [`db/seed.sql`](../db/seed.sql) and click **Run**.  
+   This inserts one demo LINE user plus two debts and payments.
 
-> **Tip:** If you run the schema more than once it is safe—the script uses `if not exists` to avoid duplicate objects.
+## 3. Verify the records
 
-## Load the demo data
+Run these checks in the SQL Editor to confirm everything was created:
 
-1. With the schema applied, open another **New query** tab in the SQL Editor.
-2. Paste the contents of `db/seed.sql` (or upload the file) into the editor.
-3. Click **Run**. The script upserts a demo user (`UDEMO1234567890`) and inserts two debts linked to that user.
+```sql
+select * from users;
+select name, balance, interest_rate, due_day from debts;
+```
 
-You can now explore the structure and sample records in Supabase's **Table editor** or connect the LINE bot using the demo data.
+## Notes
+
+- The application uses the Supabase **anon** key in production. Do **not** paste the service-role key into `.env`.
+- All primary keys are UUIDs generated on the server; you do not need to supply them manually.
+- `/plan` 指令會將最新的還款計畫寫入 `plans` 表的 `generated_plan` 欄位，方便之後查詢或追蹤。
