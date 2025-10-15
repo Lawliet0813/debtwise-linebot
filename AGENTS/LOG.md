@@ -8,3 +8,4 @@
 2025-10-15T11:29:02Z - Task 5 CI：建立 GitHub Actions (Node 18/20/22) 跑 build 與 test。
 2025-10-15T11:35:34Z - Task 6 部署設定：更新 infra/README、root README，整理 Vercel 與 ngrok/LINE 設定步驟。
 2025-10-15T11:39:14Z - Task 7 安全與後端：新增 /api/verify-idtoken 與 LIFF 前端 dashboard 呼叫流程，提醒正式環境需驗證簽章。
+2025-10-15T11:44:42Z - Task 8 一鍵腳本：實作 setup/auto-run 腳本、維護 ngrok 與 Flex 產生流程。

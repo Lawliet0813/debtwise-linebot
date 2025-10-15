@@ -7,5 +7,5 @@
 - [x] Task 4 – 測試與型別
 - [x] Task 5 – CI（GitHub Actions）
 - [x] Task 6 – 部署設定
-- [x] Task 7 – 安全與後端對接 (Done)
-- [ ] Task 8 – 一鍵腳本與開發體驗 (Next)
+- [x] Task 7 – 安全與後端對接
+- [x] Task 8 – 一鍵腳本與開發體驗 (Done)
