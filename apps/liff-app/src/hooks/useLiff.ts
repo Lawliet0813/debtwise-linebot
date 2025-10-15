@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import liff, { type Liff, type Profile } from '@line/liff';
 
 type LiffStatus = 'loading' | 'ready' | 'error';
@@ -17,6 +17,12 @@ interface UseLiffResult {
 const missingLiffIdMessage =
   '缺少 LIFF ID，請在 apps/liff-app/.env.local 設定 VITE_LIFF_ID。';
 
+declare global {
+  interface Window {
+    __LIFF_INIT_ERROR?: string;
+  }
+}
+
 export function useLiff(): UseLiffResult {
   const [status, setStatus] = useState<LiffStatus>('loading');
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -24,9 +30,9 @@ export function useLiff(): UseLiffResult {
   const [idToken, setIdToken] = useState<string | null>(null);
   const [instance, setInstance] = useState<Liff | null>(null);
 
-  const liffId = useMemo(() => import.meta.env.VITE_LIFF_ID as string | undefined, []);
+  const liffId = import.meta.env.VITE_LIFF_ID as string | undefined;
 
-  const initialize = useCallback(async () => {
+  const loadProfile = useCallback(async () => {
     if (typeof window === 'undefined') {
       return;
     }
@@ -37,9 +43,15 @@ export function useLiff(): UseLiffResult {
       return;
     }
 
+    if (window.__LIFF_INIT_ERROR) {
+      setError(window.__LIFF_INIT_ERROR);
+      setStatus('error');
+      return;
+    }
+
     try {
       setStatus('loading');
-      await liff.init({ liffId });
+      await liff.ready;
       setInstance(liff);
 
       if (!liff.isLoggedIn()) {
@@ -53,15 +65,15 @@ export function useLiff(): UseLiffResult {
       setStatus('ready');
       setError(null);
     } catch (err) {
-      console.error('[LIFF] init failed', err);
+      console.error('[LIFF] 讀取資料失敗', err);
       setError(err instanceof Error ? err.message : 'LIFF 初始化失敗，請稍後再試。');
       setStatus('error');
     }
   }, [liffId]);
 
   useEffect(() => {
-    initialize();
-  }, [initialize]);
+    loadProfile();
+  }, [loadProfile]);
 
   const shareDashboard = useCallback(async () => {
     if (!instance) {
@@ -113,6 +125,6 @@ export function useLiff(): UseLiffResult {
     error,
     shareDashboard,
     closeWindow,
-    refresh: initialize,
+    refresh: loadProfile,
   };
 }
