@@ -315,13 +315,34 @@ function VerificationBadge({ status, message }: { status: 'idle' | 'loading' | '
   );
 }
 
+function LiffSuccessPage({ label }: { label: string }) {
+  return (
+    <ScreenLayout>
+      <MotionCard
+        className="w-full max-w-md rounded-3xl bg-white/90 px-8 py-10 text-center text-slate-800 shadow-xl backdrop-blur"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <h2 className="text-2xl font-semibold text-primary">頁面載入成功</h2>
+        <p className="mt-3 text-sm text-slate-600">目前顯示的是「{label}」的佈局占位。</p>
+      </MotionCard>
+    </ScreenLayout>
+  );
+}
+
 export default function App() {
   const liffState = useLiff();
 
   return (
     <Routes>
       <Route path="/" element={<HomePage state={liffState} />} />
+      <Route path="/liff" element={<HomePage state={liffState} />} />
       <Route path="/dashboard" element={<DashboardPage state={liffState} />} />
+      <Route path="/liff/dashboard" element={<DashboardPage state={liffState} />} />
+      <Route path="/liff/add-debt" element={<LiffSuccessPage label="新增帳務" />} />
+      <Route path="/liff/ai-advice" element={<LiffSuccessPage label="AI 建議" />} />
+      <Route path="/liff/settings" element={<LiffSuccessPage label="設定" />} />
       <Route path="/health" element={<HealthPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
