@@ -1,5 +1,7 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm --workspace apps/liff-app run build",
-  "outputDirectory": "apps/liff-app/dist"
+  "outputDirectory": "apps/liff-app/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/" }
+  ]
 }
