@@ -5,7 +5,9 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "line",
@@ -19,7 +21,11 @@
   },
   "dependencies": {
     "@line/bot-sdk": "^10.3.0",
+    "@supabase/supabase-js": "^2.75.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
   }
 }

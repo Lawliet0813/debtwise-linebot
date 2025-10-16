@@ -1,28 +1,36 @@
--- Seed a demo user and debts
-with upserted_user as (
-    insert into public.users (line_user_id, name, email)
-    values ('UDEMO1234567890', 'Demo User', 'demo@debtwise.ai')
-    on conflict (line_user_id) do update
-        set name = excluded.name,
-            email = excluded.email
+-- Demo user
+with inserted_user as (
+    insert into public.users (line_user_id, name)
+    values ('U_DEMO', 'Demo User')
     returning id
+),
+
+inserted_debts as (
+    insert into public.debts (user_id, name, balance, interest_rate, min_payment, due_day)
+    select
+        inserted_user.id,
+        debt_name,
+        balance,
+        interest_rate,
+        min_payment,
+        due_day
+    from inserted_user
+    cross join (values
+        ('卡費', 50000.00, 14.900, 1500.00, 25),
+        ('學貸', 120000.00, 1.680, 2000.00, 10)
+    ) as debts(debt_name, balance, interest_rate, min_payment, due_day)
+    returning id, name
 )
-insert into public.debts (user_id, name, balance, interest_rate, min_payment, due_day)
+
+insert into public.payments (debt_id, amount, date, note)
 select
-    u.id,
-    d.debt_name,
-    d.balance,
-    d.interest_rate,
-    d.min_payment,
-    d.due_day
-from upserted_user u
-cross join (values
-    ('信用卡卡費', 52000.00, 14.90, 1800.00, 25),
-    ('學貸', 180000.00, 2.50, 3500.00, 5)
-) as d(debt_name, balance, interest_rate, min_payment, due_day)
-where not exists (
-    select 1
-    from public.debts existing
-    where existing.user_id = u.id
-      and existing.name = d.debt_name
-);
+    d.id,
+    payment.amount,
+    payment.date,
+    payment.note
+from inserted_debts d
+join (values
+    (5000.00, date '2024-08-25', '第一次繳款'),
+    (4500.00, date '2024-09-25', '第二次繳款')
+) as payment(amount, date, note)
+    on d.name = '卡費';
