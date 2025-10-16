@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "nodemon --watch src --ext js,json --exec node src/index.js",
     "build": "echo 'Bot build step not required'",
-    "test": "vitest run",
+    "start": "node src/index.js",
+    "bot:ngrok": "ngrok http 3000",
+    "test": "vitest run --reporter=default",
+    "test:debug": "DEBUG_TEST_MODE=1 vitest run --reporter=default",
+    "dev:debug": "DEBUG_TEST_MODE=1 node src/index.js",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -17,7 +21,9 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.2",
+    "@types/supertest": "^2.0.16",
     "eslint": "^9.36.0",
+    "ngrok": "^4.3.3",
     "nodemon": "^3.1.7",
     "supertest": "^7.1.1",
     "vitest": "^3.2.4"

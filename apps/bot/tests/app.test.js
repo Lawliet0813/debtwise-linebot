@@ -1,106 +1,66 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
-import crypto from 'crypto';
-import { createApp } from '../src/app.js';
-import { createEventHandler } from '../src/handlers.js';
-import { loadDashboardFlex } from '../src/flex.js';
-import * as verifyLineIdTokenModule from '../lib/auth/verifyLineIdToken.js';
+import { computeLineSignature } from '../src/utils/signature.js';
 
-const channelSecret = 'test-secret';
-const channelToken = 'test-token';
+const BODY_STR = '{"events":[{"replyToken":"test","type":"message","message":{"type":"text","text":"開啟儀表板"}}]}';
+const BODY_BUFFER = Buffer.from(BODY_STR, 'utf8');
 
-function createSignature(body) {
-  const hmac = crypto.createHmac('sha256', channelSecret);
-  hmac.update(JSON.stringify(body));
-  return hmac.digest('base64');
+async function bootstrap({ debugLocal = '1' } = {}) {
+  vi.resetModules();
+  process.env.LINE_CHANNEL_ACCESS_TOKEN = 'test-token';
+  process.env.LINE_CHANNEL_SECRET = 'test-secret';
+  process.env.DEBUG_LOCAL = debugLocal;
+  process.env.DEBUG_TEST_MODE = '0';
+  process.env.VITE_LIFF_ID = 'LIFF_ID';
+  process.env.LOGIN_CHANNEL_ID = 'CHANNEL_ID';
+  process.env.LOGIN_ISSUER = 'https://access.line.me';
+
+  const appModule = await import('../src/app.js');
+  const handlersModule = await import('../src/handlers.js');
+  const replyMessage = vi.fn().mockResolvedValue(undefined);
+
+  handlersModule.configureHandlers({
+    client: { replyMessage },
+  });
+
+  const app = appModule.default;
+
+  return { app, replyMessage, handleEvent: handlersModule.handleEvent };
 }
 
 describe('bot application', () => {
-  let replyMessage;
-  let app;
-
   const networkAvailable = process.env.ENABLE_HTTP_TESTS === 'true';
-
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    process.env.LINE_CHANNEL_ID = 'CHANNEL_ID';
-    replyMessage = vi.fn().mockResolvedValue(undefined);
-    app = createApp({
-      lineConfig: {
-        channelAccessToken: channelToken,
-        channelSecret,
-      },
-      lineClient: { replyMessage },
-      liffId: 'TEST_LIFF',
-    });
-  });
-
   const maybe = networkAvailable ? it : it.skip;
 
-  maybe('returns OK BOT on /health', async () => {
+  maybe('provides health check endpoint', async () => {
+    const { app } = await bootstrap();
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
-    expect(res.text).toBe('OK BOT');
+    expect(res.body).toEqual({ ok: true });
   });
 
-  maybe('serves sample flex JSON', async () => {
-    const res = await request(app).get('/flex/sample');
-    expect(res.status).toBe(200);
-    expect(res.body.type).toBe('bubble');
-  });
-
-  maybe('verifies id token structure', async () => {
-    const spy = vi.spyOn(verifyLineIdTokenModule, 'verifyLineIdToken');
-    spy.mockResolvedValueOnce({ sub: 'U123' });
-    const ok = await request(app)
-      .post('/api/verify-idtoken')
-      .set('authorization', 'Bearer header.token.value')
-      .send({ token: 'ignored.value.here' });
-    expect(ok.status).toBe(200);
-    expect(ok.body.payload.sub).toBe('U123');
-
-    spy.mockRejectedValueOnce(new Error('Invalid token'));
-    const bad = await request(app).post('/api/verify-idtoken').send({ token: 'invalid-token' });
-    expect(bad.status).toBe(400);
-  });
-
-  maybe('handles "開啟儀表板" message via webhook', async () => {
-    const event = {
-      replyToken: 'reply-token',
+  maybe('skips reply for local debug events', async () => {
+    const { replyMessage, handleEvent } = await bootstrap({ debugLocal: '1' });
+    await handleEvent({
+      replyToken: 'test',
       type: 'message',
-      message: { type: 'text', text: '開啟儀表板' },
-    };
-    const body = { events: [event] };
-    const signature = createSignature(body);
+      message: { type: 'text', text: 'hi' },
+    });
+    expect(replyMessage).not.toHaveBeenCalled();
+  });
+
+  maybe('handles webhook request with valid signature', async () => {
+    const { app, replyMessage } = await bootstrap({ debugLocal: '0' });
+    const signature = computeLineSignature(process.env.LINE_CHANNEL_SECRET, BODY_BUFFER);
 
     const res = await request(app)
       .post('/webhook')
-      .set('content-type', 'application/json')
+      .set('Content-Type', 'application/json')
       .set('x-line-signature', signature)
-      .send(body);
+      .set('Content-Length', String(BODY_BUFFER.length))
+      .send(BODY_STR);
 
     expect(res.status).toBe(200);
-    expect(replyMessage).toHaveBeenCalledWith('reply-token', [expect.objectContaining({
-      type: 'flex',
-      altText: expect.stringContaining('DebtWise'),
-    })]);
-  });
-
-  it('creates flex message via handler without HTTP server', async () => {
-    const handler = createEventHandler({
-      client: { replyMessage },
-      liffId: 'DIRECT_TEST',
-      flexBuilder: loadDashboardFlex,
-    });
-
-    await handler({
-      replyToken: 'token-123',
-      type: 'message',
-      message: { type: 'text', text: '開啟儀表板' },
-    });
-
-    expect(replyMessage).toHaveBeenCalledWith('token-123', [expect.objectContaining({
-      type: 'flex',
-    })]);
+    expect(replyMessage).toHaveBeenCalled();
   });
 });

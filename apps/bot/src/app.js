@@ -1,66 +1,123 @@
 import express from 'express';
-import { middleware } from '@line/bot-sdk';
-import { createEventHandler } from './handlers.js';
-import { getSampleFlex, loadDashboardFlex } from './flex.js';
+import { Client, middleware } from '@line/bot-sdk';
+import { configureHandlers, handleEvent } from './handlers.js';
+import { buildDashboardFlex } from './flex/dashboard.js';
 import { verifyLineIdToken } from '../lib/auth/verifyLineIdToken.js';
+import { computeLineSignature } from './utils/signature.js';
+import { logError, logInfo } from './utils/logger.js';
 
-export function createApp({ lineConfig, lineClient, liffId }) {
-  if (!lineConfig?.channelAccessToken || !lineConfig?.channelSecret) {
-    throw new Error('缺少 LINE channel 設定，請確認環境變數。');
+const channelSecret = process.env.LINE_CHANNEL_SECRET ?? '';
+const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN ?? '';
+
+logInfo({
+  scope: 'startup',
+  'token.len': channelAccessToken.length,
+  'secret.len': channelSecret.length,
+});
+
+if (!channelSecret || !channelAccessToken) {
+  throw new Error('缺少 LINE channel 設定，請確認環境變數。');
+}
+
+export const lineConfig = {
+  channelSecret,
+  channelAccessToken,
+};
+
+export const client = new Client(lineConfig);
+configureHandlers({ client });
+
+const app = express();
+app.disable('x-powered-by');
+
+if (process.env.DEBUG_TEST_MODE === '1') {
+  app.post('/webhook', express.raw({ type: '*/*' }), (req, res) => {
+    const headerSig = req.get('x-line-signature') ?? '';
+    const secret = process.env.LINE_CHANNEL_SECRET ?? '';
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body ?? '');
+    const localSig = computeLineSignature(secret, rawBody);
+
+    logInfo({
+      scope: 'signature',
+      'secret.len': secret.length,
+      header: headerSig,
+      local: localSig,
+      equal: headerSig === localSig,
+    });
+
+    if (!headerSig) {
+      return res.status(401).json({ error: 'no signature' });
+    }
+    if (!secret) {
+      return res.status(500).json({ error: 'missing channel secret' });
+    }
+    if (headerSig !== localSig) {
+      return res.status(401).json({ error: 'bad signature' });
+    }
+    return res.status(200).end();
+  });
+}
+
+app.get('/health', (_req, res) => {
+  res.status(200).json({ ok: true });
+});
+
+app.get('/flex/sample', (_req, res) => {
+  res.json(buildDashboardFlex().contents);
+});
+
+const apiRouter = express.Router();
+apiRouter.use(express.json());
+apiRouter.post('/verify-idtoken', async (req, res) => {
+  const headerToken = req.headers.authorization?.toString().replace(/^Bearer\s+/i, '') ?? '';
+  const bodyToken = typeof req.body?.token === 'string' ? req.body.token : '';
+  const token = headerToken || bodyToken;
+
+  if (!token) {
+    return res.status(400).json({ ok: false, error: '缺少 ID Token，請確認 Authorization header 或 JSON body。' });
   }
 
-  const app = express();
-  app.disable('x-powered-by');
+  const channelId = process.env.LOGIN_CHANNEL_ID ?? process.env.LINE_CHANNEL_ID ?? process.env.VITE_LIFF_ID;
+  const issuer = process.env.LOGIN_ISSUER ?? 'https://access.line.me';
+  try {
+    const payload = await verifyLineIdToken(token, channelId, issuer);
+    return res.json({ ok: true, payload });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'ID Token 驗證失敗';
+    const status = /缺少 LINE Channel ID/.test(message) ? 500 : 400;
+    return res.status(status).json({ ok: false, error: message, todo: '正式環境請使用 LINE OpenID 公鑰驗證簽章。' });
+  }
+});
 
-  app.get('/health', (req, res) => {
-    res.type('text/plain').send('OK BOT');
-  });
+app.use('/api', apiRouter);
 
-  app.get('/flex/sample', (req, res) => {
-    res.json(getSampleFlex());
-  });
+app.post('/webhook', middleware(lineConfig), (req, res) => {
+  res.status(200).end();
 
-  const apiRouter = express.Router();
-  apiRouter.use(express.json());
-  apiRouter.post('/verify-idtoken', async (req, res) => {
-    const headerToken = req.headers.authorization?.toString().replace(/^Bearer\s+/i, '') ?? '';
-    const bodyToken = typeof req.body?.token === 'string' ? req.body.token : '';
-    const token = headerToken || bodyToken;
+  const events = Array.isArray(req.body?.events) ? req.body.events : [];
+  logInfo({ scope: 'webhook', events: events.length });
 
-    if (!token) {
-      return res.status(400).json({ ok: false, error: '缺少 ID Token，請確認 Authorization header 或 JSON body。' });
-    }
+  for (const ev of events) {
+    logInfo({
+      scope: 'event',
+      type: ev.type,
+      source: ev.source?.type,
+      mode: ev.mode,
+    });
 
-    const channelId = process.env.LOGIN_CHANNEL_ID ?? process.env.LINE_CHANNEL_ID ?? process.env.VITE_LIFF_ID;
-    const issuer = process.env.LOGIN_ISSUER ?? 'https://access.line.me';
-    try {
-      const payload = await verifyLineIdToken(token, channelId, issuer);
-      return res.json({ ok: true, payload });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'ID Token 驗證失敗';
-      const status = /缺少 LINE Channel ID/.test(message) ? 500 : 400;
-      return res.status(status).json({ ok: false, error: message, todo: '正式環境請使用 LINE OpenID 公鑰驗證簽章。' });
-    }
-  });
+    Promise.resolve(handleEvent(ev)).catch((error) => {
+      const status = error?.response?.status;
+      const data = error?.response?.data;
+      if (status) {
+        logError({ scope: 'handleEvent', status, data });
+      } else {
+        logError({
+          scope: 'handleEvent',
+          message: error instanceof Error ? error.message : error,
+        });
+      }
+    });
+  }
+});
 
-  app.use('/api', apiRouter);
-
-  const handleEvent = createEventHandler({
-    client: lineClient,
-    liffId,
-    flexBuilder: loadDashboardFlex,
-  });
-
-  app.post('/webhook', middleware(lineConfig), async (req, res) => {
-    try {
-      await Promise.all(req.body.events.map(handleEvent));
-      res.status(200).end();
-    } catch (error) {
-      console.error('[Webhook Error]', error);
-      res.status(500).json({ error: 'Webhook handler failed' });
-    }
-  });
-
-
-  return app;
-}
+export default app;

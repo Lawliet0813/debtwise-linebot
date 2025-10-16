@@ -1,0 +1,30 @@
+name: bot-tests
+
+on:
+  push:
+    paths:
+      - 'apps/bot/**'
+      - '.github/workflows/bot-tests.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    paths:
+      - 'apps/bot/**'
+      - '.github/workflows/bot-tests.yml'
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm --workspace apps/bot run test
+        env:
+          LINE_CHANNEL_SECRET: dummy_32_chars_secret_aaaaaaaaaaaaaa
+          LINE_CHANNEL_ACCESS_TOKEN: dummy_token_for_tests
+          DEBUG_LOCAL: '1'
