@@ -152,4 +152,5 @@ app.use((req, res, next) => {
   return next();
 });
 
+export { app };
 export default app;
