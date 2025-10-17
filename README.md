@@ -1,6 +1,6 @@
 # LINE-LIFF-Auto Monorepo
 
-整合 LINE Messaging API Bot 與 LIFF 前端的多模專案，支援一鍵啟動、測試、部署到 Vercel，並提供 Rich Menu / Flex 產生腳本與自動化代理流程。
+整合 LINE Messaging API Bot 與 LIFF 前端的多模專案，支援一鍵啟動、測試，並透過 Render 部署為單一 Node.js 服務，同時提供 Rich Menu / Flex 產生腳本與自動化代理流程。
 
 ## 專案結構
 
@@ -10,10 +10,9 @@
 │  ├─ liff-app/            # React + Vite + Tailwind + LIFF 前端
 │  └─ bot/                 # Node + Express Webhook 伺服器
 ├─ infra/
-│  ├─ vercel.json          # Vercel build 設定
 │  └─ README.md            # 部署指南
 ├─ AGENTS/                 # 自動化代理腳本、TODO、LOG
-├─ .github/workflows/ci.yml# GitHub Actions（Node 18/20/22）
+├─ .github/workflows/ci-render-preview.yml # GitHub Actions（CI + Render Preview）
 ├─ package.json            # npm workspaces 與全域指令
 ├─ pnpm-lock 封鎖: 無（採 npm）
 └─ .env.example            # 環境變數樣板
@@ -33,7 +32,7 @@ npm run dev       # 併發啟動 LIFF 與 Bot（需於各自 workspace 設定 .e
 | 指令 | 說明 |
 | ---- | ---- |
 | `npm run dev` | 併發啟動 `dev:liff` 與 `dev:bot` |
-| `npm run build` | 併發執行前、後端 build |
+| `npm run build` | 建置 LIFF 並輸出至 `apps/bot/public` |
 | `npm run test` | 併發執行前、後端測試（bot HTTP 測試預設跳過，可設 `ENABLE_HTTP_TESTS=true` 啟用） |
 | `npm run bot:ngrok` | 顯示 ngrok 隧道啟動與 Webhook 設定指引 |
 | `npm run richmenu:create` | 以 dry-run 模式建立 Rich Menu payload |
@@ -41,7 +40,6 @@ npm run dev       # 併發啟動 LIFF 與 Bot（需於各自 workspace 設定 .e
 | `npm run richmenu:link` / `:unlink` | Dry-run：綁定或解除使用者與 Rich Menu |
 | `npm run richmenu:delete:all` | Dry-run：列出並刪除所有 Rich Menu |
 | `npm run health` | 健康檢查腳本（前端/後端/Flex/Rich Menu） |
-| `npm run deploy:vercel[:*]` | Vercel CLI 模板（link / env / deploy） |
 | `npm run setup` | 自動化初始設定腳本（建立 .env.local、Flex 範本等） |
 | `npm run auto` | 自動代理流程（詳見 `AGENTS/AGENT.md`） |
 
@@ -79,7 +77,7 @@ PORT=3000
 
 ## 功能總覽
 
-- `/health`（前端 `/health` → `OK LIFF`、後端 `/health` → `OK BOT`）
+- `/health`：單一服務的健康檢查（回傳 `{ ok: true }`）
 - `/webhook`：處理 LINE push events，當收到「開啟儀表板」回傳 Flex Bubble；其它訊息回覆指引文字
 - `/flex/sample`：回傳 Flex 範本 JSON
 - `/api/verify-idtoken`：預留 LIFF ID Token 驗證端點（待 Task 7 擴充）
@@ -102,36 +100,33 @@ PORT=3000
 
 ## 部署
 
-### Vercel（LIFF 前端）
-1. `npm i -g vercel`
-2. `npm run deploy:vercel:link`（或手動 `vercel link --yes`）
-3. `npm run deploy:vercel:env` → 選擇 `VITE_LIFF_ID` 並填入正式 LIFF ID
-4. `npm run deploy:vercel` 或 `vercel deploy --prod`
+### Render（正式環境）
+1. 在 Render 建立 Web Service，連結此 Repository。
+2. Build Command：`npm ci && npm run build`
+3. Start Command：`npm run start`
+4. 環境變數：
+   - `LINE_CHANNEL_ACCESS_TOKEN`
+   - `LINE_CHANNEL_SECRET`
+   - `VITE_LIFF_ID`（或 `LOGIN_CHANNEL_ID`）
+   - `PORT`（Render 預設提供 `PORT`，可沿用）
+5. 健康檢查：`GET /health`，成功回傳 `{ ok: true }` 即代表服務正常。
 
-> Build Command：`npm --workspace apps/liff-app run build`
-  Output Directory：`apps/liff-app/dist`
+部署完成後，前端 LIFF 與 LINE Bot Webhook 會共用同一個 Node.js 服務，不需再維護兩套部署。
 
 ### Bot 暫時部署（ngrok）
 1. `npm i -g ngrok`（首次安裝）
 2. `npm run bot:ngrok` 取得啟動指令與 LINE Webhook 設定教學
 3. 將 `https://<隧道>/webhook` 填入 Messaging API → Webhook URL，並使用範例 curl 測試
+   > 開發時可使用 `DEBUG_TEST_MODE=1` 模式偵錯簽章驗證。
 
-### Bot 正式部署模板（Render / Railway 等）
-- 需設定環境變數：`LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `VITE_LIFF_ID`, `PORT`
-- 入口指令：`npm --workspace apps/bot run dev`（開發）或自行建立啟動腳本
-- 可參考 `infra/README.md` 了解更多部署細節
-
-### GitHub Secrets 設定（Vercel 自動部署）
-1. 於本機登入 Vercel，使用 CLI 取得必要資訊：
-   ```bash
-   vercel projects ls       # 查詢 PROJECT_ID
-   vercel whoami            # 檢查帳戶（ORG_ID 可由 CLI or 控制台取得）
-   ```
-2. 於 GitHub Repository → Settings → Secrets and variables → Actions 建立：
-   - `VERCEL_TOKEN`：`vercel login` 後使用 `vercel -t <token>` 取得
-   - `VERCEL_ORG_ID`：可至 Vercel 控制台或 API 查詢
-   - `VERCEL_PROJECT_ID`：對應 apps/liff-app 的專案 ID
-3. 完成後，push 到 main 會觸發 `.github/workflows/deploy.yml` 自動部署。
+### GitHub Secrets 設定（Render Preview）
+1. 至 GitHub Repository → Settings → Secrets and variables → Actions 建立：
+   - `RENDER_PREVIEW_HOOK`：Render Deploy Hook URL（必填，用於自動觸發預覽部署）
+   - `PREVIEW_URL`：預覽環境的固定網址（選填，Workflow 會在 PR 留言提供連結）
+2. 建立 Pull Request 時，Workflow 會：
+   - 安裝相依套件並執行 `npm run test`
+   - 建置前端並確認輸出至 `apps/bot/public`
+   - 觸發 Render Deploy Hook，於 PR 留言顯示預覽狀態與驗證步驟
 
 ## LINE Developers 設定指引
 
@@ -139,7 +134,7 @@ PORT=3000
    - 於後台啟用 Webhook，URL 指向：`https://<部署網址>/webhook`
    - 同步設定 Channel access token / secret。
 2. **LIFF**
-   - 新增 LIFF App，Endpoint URL 指向 Vercel 部署網址。
+   - 新增 LIFF App，Endpoint URL 指向 Render 部署網址。
    - 取得 LIFF ID 後填入 `.env` 與 LINE Flex / Rich Menu URI。
 3. **權限需求**：`profile`, `openid`。
 
