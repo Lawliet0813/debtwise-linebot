@@ -1,26 +1,24 @@
-# 部署指南
+# Render 部署指南
 
-## Vercel（LIFF 前端）
+## 單一 Web Service
 
-1. 登入 Vercel，建立新專案並連結此 GitHub Repository。
-2. Build Command：`npm --workspace apps/liff-app run build`
-3. Output Directory：`apps/liff-app/dist`
-4. 設定環境變數：
-   - `VITE_LIFF_ID`：LINE Developers 取得的 LIFF ID
-   - `APP_BASE_URL`：對外網址（選擇性，用於文件）
-5. 部署完成後，記錄 Vercel 網域供 LINE LIFF 設定使用。
+1. **Build Command**：`npm ci && npm run build`
+2. **Start Command**：`npm run start`
+3. **Environment Variables**
+   - `LINE_CHANNEL_ACCESS_TOKEN`
+   - `LINE_CHANNEL_SECRET`
+   - `VITE_LIFF_ID`（或 `LOGIN_CHANNEL_ID`）
+   - `PORT`（預設 3000，可依 Render 需求調整）
+4. **健康檢查**：設定 `GET /health`，狀態碼 200 代表服務正常。
 
-## Bot Webhook（Render / Fly.io / 自建伺服器）
+部署完成後，前端 LIFF 與 LINE Bot Webhook 會由相同的 Node.js 服務提供。
 
-- 建議於部署平台設定下列環境變數：
-  - `LINE_CHANNEL_ACCESS_TOKEN`
-  - `LINE_CHANNEL_SECRET`
-  - `VITE_LIFF_ID`
-  - `PORT`（預設 3000）
-- 若採自建主機，可配合 `apps/bot/scripts/ngrok-template.js` 快速開啟臨時隧道：
-  ```bash
-  npm run bot:ngrok
-  ```
-  取得的 https URL 可直接設定為 LINE Messaging API Webhook。
+## Render Preview Deploy Hook
 
-更多設定請參考專案根目錄 README。
+- 於 GitHub Secrets 設定 `RENDER_PREVIEW_HOOK`（必填）與 `PREVIEW_URL`（選填，固定預覽網址）。
+- 每次 Pull Request 會自動執行 CI，並觸發 Deploy Hook 部署預覽環境。
+- Workflow 會在 PR 留言顯示預覽狀態與驗證步驟：
+  - `GET /health` 回傳 200
+  - 首頁與 SPA 路由載入正常
+
+如需臨時測試，可使用 `npm run bot:ngrok` 建立暫時 URL。

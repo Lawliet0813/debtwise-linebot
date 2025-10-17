@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { Client, middleware } from '@line/bot-sdk';
 import { configureHandlers, handleEvent } from './handlers.js';
@@ -5,6 +8,11 @@ import { buildDashboardFlex } from './flex/dashboard.js';
 import { verifyLineIdToken } from '../lib/auth/verifyLineIdToken.js';
 import { computeLineSignature } from './utils/signature.js';
 import { logError, logInfo } from './utils/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const publicDir = path.resolve(__dirname, '../public');
+const indexHtmlPath = path.join(publicDir, 'index.html');
 
 const channelSecret = process.env.LINE_CHANNEL_SECRET ?? '';
 const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN ?? '';
@@ -118,6 +126,28 @@ app.post('/webhook', middleware(lineConfig), (req, res) => {
       }
     });
   }
+});
+
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+}
+
+app.get('*', (req, res, next) => {
+  const isHtmlRequest = req.method === 'GET' && (req.headers.accept?.includes('text/html') ?? false);
+  const isApiRequest = req.path === '/api' || req.path.startsWith('/api/');
+  const isWebhookRequest = req.path.startsWith('/webhook');
+  const isHealth = req.path === '/health';
+  const isAssetFile = Boolean(path.extname(req.path));
+
+  if (!isHtmlRequest || isApiRequest || isWebhookRequest || isHealth || isAssetFile) {
+    return next();
+  }
+
+  if (fs.existsSync(indexHtmlPath)) {
+    return res.sendFile(indexHtmlPath);
+  }
+
+  return next();
 });
 
 export default app;

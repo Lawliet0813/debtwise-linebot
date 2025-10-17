@@ -62,23 +62,18 @@ function checkRichMenuSchema() {
 }
 
 (async () => {
-  const providedFrontUrl = process.env.FRONT_URL ? process.env.FRONT_URL.trim() : null;
-  const frontBase = process.env.VERCEL_URL
-    ? process.env.VERCEL_URL.replace(/\/$/, '')
-    : 'http://localhost:5173';
-  const frontUrl = providedFrontUrl ?? `${frontBase}${frontBase.endsWith('/health') ? '' : '/health'}`;
-  const frontLabel = providedFrontUrl
-    ? '前端 (自訂 URL)'
-    : process.env.VERCEL_URL
-      ? '前端 (Vercel)'
-      : '前端 (本地 5173)';
-  const botUrl = process.env.BOT_URL ? process.env.BOT_URL.trim() : 'http://localhost:3000/health';
+  const baseEnv =
+    process.env.APP_URL ??
+    process.env.BOT_URL ??
+    process.env.FRONT_URL ??
+    process.env.RENDER_URL ??
+    'http://localhost:3000';
+  const serviceBase = baseEnv.replace(/\/$/, '');
 
-  await checkHttp(frontLabel, frontUrl, 'OK LIFF');
+  await checkHttp('Web Service /health', `${serviceBase}/health`, '"ok":true');
 
   await delay(50);
-  const botLabel = process.env.BOT_URL ? 'Bot (自訂 URL)' : 'Bot (本地 3000)';
-  await checkHttp(botLabel, botUrl, 'OK BOT');
+  await checkHttp('Web Service 首頁', `${serviceBase}/`, '<!doctype html');
   checkFlexSchema();
   checkRichMenuSchema();
 
