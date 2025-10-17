@@ -9,6 +9,8 @@ apps/bot/public/
 !*/.env.local.example
 *.log
 .DS_Store
+.idea/
+.vscode/
 .vercel/
 .tmp/
 coverage/
