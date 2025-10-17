@@ -5,9 +5,9 @@ import express from 'express';
 import { Client, middleware } from '@line/bot-sdk';
 import { configureHandlers, handleEvent } from './handlers.js';
 import { buildDashboardFlex } from './flex/dashboard.js';
-import { verifyLineIdToken } from '../lib/auth/verifyLineIdToken.js';
 import { computeLineSignature } from './utils/signature.js';
 import { logError, logInfo } from './utils/logger.js';
+import authRouter from './routes/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +37,20 @@ configureHandlers({ client });
 
 const app = express();
 app.disable('x-powered-by');
+
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', process.env.CORS_ALLOW_ORIGIN ?? '*');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, X-Requested-With',
+  );
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Max-Age', '600');
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  return next();
+});
 
 if (process.env.DEBUG_TEST_MODE === '1') {
   app.post('/webhook', express.raw({ type: '*/*' }), (req, res) => {
@@ -74,30 +88,7 @@ app.get('/flex/sample', (_req, res) => {
   res.json(buildDashboardFlex().contents);
 });
 
-const apiRouter = express.Router();
-apiRouter.use(express.json());
-apiRouter.post('/verify-idtoken', async (req, res) => {
-  const headerToken = req.headers.authorization?.toString().replace(/^Bearer\s+/i, '') ?? '';
-  const bodyToken = typeof req.body?.token === 'string' ? req.body.token : '';
-  const token = headerToken || bodyToken;
-
-  if (!token) {
-    return res.status(400).json({ ok: false, error: '缺少 ID Token，請確認 Authorization header 或 JSON body。' });
-  }
-
-  const channelId = process.env.LOGIN_CHANNEL_ID ?? process.env.LINE_CHANNEL_ID ?? process.env.VITE_LIFF_ID;
-  const issuer = process.env.LOGIN_ISSUER ?? 'https://access.line.me';
-  try {
-    const payload = await verifyLineIdToken(token, channelId, issuer);
-    return res.json({ ok: true, payload });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'ID Token 驗證失敗';
-    const status = /缺少 LINE Channel ID/.test(message) ? 500 : 400;
-    return res.status(status).json({ ok: false, error: message, todo: '正式環境請使用 LINE OpenID 公鑰驗證簽章。' });
-  }
-});
-
-app.use('/api', apiRouter);
+app.use('/auth', authRouter);
 
 app.post('/webhook', middleware(lineConfig), (req, res) => {
   res.status(200).end();
@@ -141,6 +132,7 @@ app.use((req, res, next) => {
   if (!expectsHtml) return next();
 
   if (req.path === '/api' || req.path.startsWith('/api/')) return next();
+  if (req.path === '/auth' || req.path.startsWith('/auth/')) return next();
   if (req.path.startsWith('/webhook')) return next();
   if (req.path === '/health') return next();
 
