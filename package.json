@@ -6,6 +6,7 @@
     "apps/*"
   ],
   "scripts": {
+    "prebuild": "node scripts/ensure-deps.js",
     "dev": "npm-run-all --parallel dev:*",
     "dev:liff": "npm --workspace apps/liff-app run dev",
     "dev:bot": "npm --workspace apps/bot run dev",
