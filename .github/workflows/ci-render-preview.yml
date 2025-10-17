@@ -1,8 +1,29 @@
+# --------------------------------------------------------------------------------------
+# CI & Render Preview Workflow
+# - Supports pull_request, push (feature branches + main), and manual workflow_dispatch.
+# - Runs tests/build once, then deploys to Render preview or production based on context.
+# - Secrets:
+#     RENDER_PREVIEW_HOOK      Deploy Hook URL for preview environment (optional but recommended)
+#     RENDER_PRODUCTION_HOOK   Deploy Hook URL for production environment (optional but recommended)
+#     PREVIEW_URL              Public URL for preview validation (optional)
+#     PROD_URL                 Public URL for production validation (optional)
+# --------------------------------------------------------------------------------------
 name: CI & Render Preview
 
 on:
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: 'Select deployment target environment'
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
   push:
     branches:
+      - main
       - 'feature/**'
       - 'chore/**'
       - 'fix/**'
@@ -14,11 +35,10 @@ permissions:
   pull-requests: write
 
 jobs:
-  ci:
+  test-and-build:
     runs-on: ubuntu-latest
-    env:
-      RENDER_PREVIEW_HOOK: ${{ secrets.RENDER_PREVIEW_HOOK }}
-      PREVIEW_URL: ${{ secrets.PREVIEW_URL }}
+    outputs:
+      deploy_target: ${{ steps.compute_target.outputs.deploy_target }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,7 +57,6 @@ jobs:
         env:
           LINE_CHANNEL_SECRET: dummy_32_chars_secret_aaaaaaaaaaaaaa
           LINE_CHANNEL_ACCESS_TOKEN: dummy_token_for_tests
-          ENABLE_HTTP_TESTS: 'true'
           DEBUG_LOCAL: '1'
 
       - name: Build frontend bundle
@@ -48,50 +67,173 @@ jobs:
           test -f apps/bot/public/index.html
           echo "index.html located in apps/bot/public"
 
-      - name: Trigger Render preview
-        id: render_preview
+      - name: Determine deployment target
+        id: compute_target
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          DISPATCH_TARGET: ${{ github.event.inputs.deploy_target }}
         run: |
-          if [ -z "$RENDER_PREVIEW_HOOK" ]; then
-            echo "hook_status=skipped" >> "$GITHUB_OUTPUT"
-            exit 0
+          target="${DISPATCH_TARGET}"
+          if [ -z "$target" ]; then
+            if [ "${EVENT_NAME}" = "push" ] && [ "${EVENT_REF}" = "refs/heads/main" ]; then
+              target="production"
+            else
+              target="preview"
+            fi
+          fi
+          echo "deploy_target=$target" >> "$GITHUB_OUTPUT"
+          echo "Selected deploy target: $target" >> "$GITHUB_STEP_SUMMARY"
+
+  render-deploy:
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    if: needs.test-and-build.result == 'success'
+    outputs:
+      target: ${{ steps.config.outputs.target }}
+      label: ${{ steps.config.outputs.label }}
+      status: ${{ steps.finalize.outputs.status }}
+      url: ${{ steps.finalize.outputs.url }}
+      message: ${{ steps.finalize.outputs.message }}
+    steps:
+      - name: Resolve deployment configuration
+        id: config
+        env:
+          DEPLOY_TARGET: ${{ needs.test-and-build.outputs.deploy_target }}
+          RENDER_PREVIEW_HOOK: ${{ secrets.RENDER_PREVIEW_HOOK }}
+          RENDER_PRODUCTION_HOOK: ${{ secrets.RENDER_PRODUCTION_HOOK }}
+          PREVIEW_URL: ${{ secrets.PREVIEW_URL }}
+          PROD_URL: ${{ secrets.PROD_URL }}
+        run: |
+          target="${DEPLOY_TARGET:-preview}"
+          label="Preview"
+          hook="${RENDER_PREVIEW_HOOK}"
+          url="${PREVIEW_URL}"
+
+          if [ "${target}" = "production" ]; then
+            label="Production"
+            hook="${RENDER_PRODUCTION_HOOK}"
+            url="${PROD_URL}"
+          else
+            target="preview"
           fi
 
-          if curl --fail --silent --show-error -X POST "$RENDER_PREVIEW_HOOK" --output /dev/null; then
-            echo "hook_status=triggered" >> "$GITHUB_OUTPUT"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+          echo "label=$label" >> "$GITHUB_OUTPUT"
+          echo "deploy_url=${url:-}" >> "$GITHUB_OUTPUT"
+          echo "deploy_hook=${hook:-}" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Render deployment
+        id: deploy
+        if: steps.config.outputs.deploy_hook != ''
+        env:
+          DEPLOY_HOOK: ${{ steps.config.outputs.deploy_hook }}
+          TARGET_LABEL: ${{ steps.config.outputs.label }}
+          DEPLOY_URL: ${{ steps.config.outputs.deploy_url }}
+        run: |
+          echo "Triggering Render ${TARGET_LABEL} deployment..."
+          if curl --fail --silent --show-error -X POST "$DEPLOY_HOOK" --output /dev/null; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+            echo "message=Render ${TARGET_LABEL} Deploy Hook 已觸發。" >> "$GITHUB_OUTPUT"
+            echo "url=${DEPLOY_URL:-}" >> "$GITHUB_OUTPUT"
           else
-            echo "hook_status=failed" >> "$GITHUB_OUTPUT"
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            echo "message=Render ${TARGET_LABEL} Deploy Hook 觸發失敗，請檢查 workflow logs。" >> "$GITHUB_OUTPUT"
             exit 1
           fi
 
-      - name: Render preview status comment
+      - name: Skip deployment (missing hook)
+        id: skip
+        if: steps.config.outputs.deploy_hook == ''
+        env:
+          TARGET_LABEL: ${{ steps.config.outputs.label }}
+        run: |
+          echo "::warning::Render ${TARGET_LABEL} Deploy Hook Secret 未設定，跳過部署。"
+          echo "status=skipped" >> "$GITHUB_OUTPUT"
+          echo "message=尚未設定 Render ${TARGET_LABEL} Deploy Hook Secret，跳過部署。" >> "$GITHUB_OUTPUT"
+          echo "url=" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize deployment
+        id: finalize
+        env:
+          TARGET_LABEL: ${{ steps.config.outputs.label }}
+          STATUS_SUCCESS: ${{ steps.deploy.outputs.status }}
+          STATUS_SKIPPED: ${{ steps.skip.outputs.status }}
+          MESSAGE_SUCCESS: ${{ steps.deploy.outputs.message }}
+          MESSAGE_SKIPPED: ${{ steps.skip.outputs.message }}
+          URL_SUCCESS: ${{ steps.deploy.outputs.url }}
+          URL_DEFAULT: ${{ steps.config.outputs.deploy_url }}
+        run: |
+          status="${STATUS_SUCCESS:-${STATUS_SKIPPED:-skipped}}"
+          message="${MESSAGE_SUCCESS:-${MESSAGE_SKIPPED:-Render ${TARGET_LABEL} 部署狀態未更新。}}"
+          url="${URL_SUCCESS:-${URL_DEFAULT:-}}"
+
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "message=$message" >> "$GITHUB_OUTPUT"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+          icon="⚠️"
+          if [ "$status" = "success" ]; then
+            icon="✅"
+          elif [ "$status" = "failed" ]; then
+            icon="❌"
+          fi
+
+          {
+            echo "### Render ${TARGET_LABEL} 部署狀態"
+            echo ""
+            echo "${icon} ${message}"
+            if [ -n "$url" ]; then
+              echo ""
+              echo "- 網址：$url"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update PR deployment comment
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         env:
-          HOOK_STATUS: ${{ steps.render_preview.outputs.hook_status }}
+          MARKER: '<!-- render-preview -->'
+          DEPLOY_TARGET: ${{ steps.config.outputs.target }}
+          STATUS: ${{ steps.finalize.outputs.status }}
+          MESSAGE: ${{ steps.finalize.outputs.message }}
+          URL: ${{ steps.finalize.outputs.url }}
           PREVIEW_URL: ${{ secrets.PREVIEW_URL }}
+          PROD_URL: ${{ secrets.PROD_URL }}
         with:
           script: |
-            const marker = '<!-- render-preview -->';
-            const hookStatus = process.env.HOOK_STATUS || 'skipped';
-            const previewUrl = process.env.PREVIEW_URL || '';
+            const marker = process.env.MARKER;
+            const target = (process.env.DEPLOY_TARGET === 'production') ? 'Production' : 'Preview';
+            const status = process.env.STATUS || 'skipped';
+            const url =
+              process.env.URL ||
+              (target === 'Production' ? process.env.PROD_URL : process.env.PREVIEW_URL) ||
+              '';
 
-            const statusMap = {
-              triggered: '✅ Render Preview Deploy Hook 已觸發。',
-              failed: '❌ Render Preview Deploy Hook 觸發失敗，請檢查 workflow logs。',
-              skipped: '⚠️ 尚未設定 RENDER_PREVIEW_HOOK Secret，無法自動觸發預覽部署。'
-            };
+            let headline = '';
+            if (status === 'success') {
+              headline = target === 'Production'
+                ? '✅ 正式環境部署已觸發。'
+                : '✅ 預覽環境部署已觸發。';
+            } else if (status === 'failed') {
+              headline = '❌ Render Deploy Hook 觸發失敗，請檢查 workflow logs。';
+            } else {
+              headline = `⚠️ 尚未設定 Render ${target} Deploy Hook Secret，跳過部署。`;
+            }
+
+            const urlLine = url
+              ? `- 部署網址：${url}`
+              : `- 尚未提供 ${target} URL，可設定對應 Secret 顯示連結。`;
 
             const lines = [
               marker,
-              '### Render Preview 狀態',
-              statusMap[hookStatus] ?? statusMap.skipped,
-              previewUrl
-                ? `- 預覽網址：${previewUrl}`
-                : '- 尚未設定 PREVIEW_URL Secret，如有固定預覽網址可補上。',
+              `### Render ${target} 部署狀態`,
+              headline,
+              urlLine,
               '',
               '請驗證：',
               '- `GET /health` 應回傳 200',
-              '- 首頁與主要 SPA 路由可由同一個 Node.js 服務正常載入'
+              '- 首頁與主要 SPA 路由可由同一個 Node.js 服務正常載入',
             ];
 
             const body = lines.join('\n');

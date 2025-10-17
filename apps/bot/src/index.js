@@ -15,7 +15,15 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-const { default: app } = await import('./app.js');
+const appModule = await import('./app.js');
+const app =
+  appModule?.default ??
+  appModule?.app ??
+  (typeof appModule === 'function' ? appModule : undefined);
+
+if (!app || typeof app.listen !== 'function') {
+  throw new Error('Express application failed to load from ./app.js');
+}
 
 const port = Number(process.env.PORT ?? 3000);
 app.listen(port, () => {

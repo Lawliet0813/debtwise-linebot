@@ -133,21 +133,24 @@ if (fs.existsSync(publicDir)) {
 }
 
 app.use((req, res, next) => {
-  // 只針對 GET/HEAD 的瀏覽器導頁做 SPA fallback
   const methodOk = req.method === 'GET' || req.method === 'HEAD';
   if (!methodOk) return next();
 
-  // 排除 API / webhook / 健檢
+  const acceptHeader = req.headers.accept ?? '';
+  const expectsHtml = acceptHeader.includes('text/html') || req.method === 'HEAD';
+  if (!expectsHtml) return next();
+
   if (req.path === '/api' || req.path.startsWith('/api/')) return next();
   if (req.path.startsWith('/webhook')) return next();
   if (req.path === '/health') return next();
 
-  // 排除有副檔名的資源（.js .css .png...）
   if (path.extname(req.path)) return next();
 
-  // 其餘一律回 index.html，交由前端路由處理
   if (fs.existsSync(indexHtmlPath)) {
     return res.sendFile(indexHtmlPath);
   }
   return next();
 });
+
+export { app };
+export default app;
