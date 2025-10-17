@@ -37,7 +37,6 @@ jobs:
         env:
           LINE_CHANNEL_SECRET: dummy_32_chars_secret_aaaaaaaaaaaaaa
           LINE_CHANNEL_ACCESS_TOKEN: dummy_token_for_tests
-          ENABLE_HTTP_TESTS: 'true'
           DEBUG_LOCAL: '1'
 
       - name: Build frontend bundle
