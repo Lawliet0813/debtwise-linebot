@@ -132,7 +132,6 @@ describe('POST /auth/verify', () => {
       picture: 'https://example.com/picture.png',
       email: 'test@example.com',
     });
-    expect(res.payload.payload.sub).toBe('U1234567890');
   });
 
   it('rejects expired tokens with TOKEN_EXPIRED', async () => {

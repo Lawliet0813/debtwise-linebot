@@ -5,6 +5,7 @@ const MAX_CACHED_KEYS = 5;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CLOCK_TOLERANCE_SECONDS = 300;
 const MAX_FETCHES_PER_MINUTE = 10;
+const MAX_RECENT_TIMESTAMPS = 100;
 
 const jwkCache = new Map();
 let lastFetchError = null;
@@ -81,19 +82,24 @@ export class UnknownVerificationError extends LineVerifyError {
   }
 }
 
-const touchFetchWindow = (timestamp) => {
+const cleanupOldTimestamps = (timestamp) => {
   const cutoff = timestamp - 60_000;
   while (recentFetchTimestamps.length && recentFetchTimestamps[0] < cutoff) {
     recentFetchTimestamps.shift();
   }
+  // Hard limit protection to prevent memory leak
+  while (recentFetchTimestamps.length >= MAX_RECENT_TIMESTAMPS) {
+    recentFetchTimestamps.shift();
+  }
+};
+
+const touchFetchWindow = (timestamp) => {
+  cleanupOldTimestamps(timestamp);
   recentFetchTimestamps.push(timestamp);
 };
 
 const ensureRateLimit = (timestamp) => {
-  const cutoff = timestamp - 60_000;
-  while (recentFetchTimestamps.length && recentFetchTimestamps[0] < cutoff) {
-    recentFetchTimestamps.shift();
-  }
+  cleanupOldTimestamps(timestamp);
   if (recentFetchTimestamps.length >= MAX_FETCHES_PER_MINUTE) {
     const waitMs = 60_000 - (timestamp - recentFetchTimestamps[0]);
     const rateError = new UnknownVerificationError(

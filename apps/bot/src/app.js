@@ -38,8 +38,16 @@ configureHandlers({ client });
 const app = express();
 app.disable('x-powered-by');
 
+const corsOrigin = process.env.CORS_ALLOW_ORIGIN;
+if (process.env.NODE_ENV === 'production' && !corsOrigin) {
+  logError({
+    scope: 'startup',
+    message: 'CORS_ALLOW_ORIGIN should be set in production for security',
+  });
+}
+
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', process.env.CORS_ALLOW_ORIGIN ?? '*');
+  res.setHeader('Access-Control-Allow-Origin', corsOrigin ?? '*');
   res.setHeader(
     'Access-Control-Allow-Headers',
     'Content-Type, Authorization, X-Requested-With',

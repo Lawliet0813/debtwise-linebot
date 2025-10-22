@@ -83,7 +83,6 @@ export async function handleVerify(req, res) {
     return res.json({
       ok: true,
       user: formatUser(payload),
-      payload,
     });
   } catch (error) {
     const err = error instanceof LineVerifyError ? error : null;
@@ -96,8 +95,6 @@ export async function handleVerify(req, res) {
       reason: error instanceof Error ? error.message : String(error),
       errorCode,
       kid: header?.kid ?? null,
-      iss: header?.iss ?? undefined,
-      aud: header?.aud ?? undefined,
       token: maskedToken,
     });
 
