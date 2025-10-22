@@ -9,6 +9,7 @@
     "start": "node src/index.js",
     "bot:ngrok": "ngrok http 3000",
     "test": "vitest run --reporter=default",
+    "test:coverage": "vitest run --coverage --reporter=default",
     "test:debug": "DEBUG_TEST_MODE=1 vitest run --reporter=default",
     "dev:debug": "DEBUG_TEST_MODE=1 node src/index.js",
     "lint": "eslint ."
